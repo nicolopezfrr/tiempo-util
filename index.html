@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Tiempo útil</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#EEF1F4; --surface:#FFFFFF; --ink:#141A22; --muted:#5E6B7A; --line:#D5DBE2;
+  --nico:#2F5BEA; --alex:#E0661B; --jacobo:#13906A; --fine:#C9302C; --ok:#13906A;
+  --track:#E1E6EC;
+  box-sizing:border-box;
+  padding-top:env(safe-area-inset-top,0px);
+  padding-bottom:env(safe-area-inset-bottom,0px);
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --bg:#0F141A; --surface:#18202A; --ink:#E8EDF2; --muted:#93A1B0; --line:#2A3542;
+    --nico:#6E8EFF; --alex:#FF8A47; --jacobo:#3CC797; --fine:#FF6B66; --ok:#3CC797; --track:#253041;
+  }
+}
+:root[data-theme="dark"]{
+  --bg:#0F141A; --surface:#18202A; --ink:#E8EDF2; --muted:#93A1B0; --line:#2A3542;
+  --nico:#6E8EFF; --alex:#FF8A47; --jacobo:#3CC797; --fine:#FF6B66; --ok:#3CC797; --track:#253041;
+}
+*,*::before,*::after{box-sizing:inherit}
+html{height:100%;scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;min-height:100%;background:var(--bg);color:var(--ink);
+  font-family:"Bricolage Grotesque",system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+  font-size:16px;line-height:1.45;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+button,input,select,textarea{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:2px solid var(--nico);outline-offset:2px}
+main{max-width:560px;margin:0 auto;padding:20px 16px 110px}
+h1{font-size:1.15rem;font-weight:600;margin:0}
+h2{font-size:1rem;font-weight:600;margin:28px 0 10px}
+.muted{color:var(--muted)}
+.small{font-size:.875rem}
+.card{background:var(--surface);border-radius:14px;padding:16px;border:1px solid var(--line)}
+.row{display:flex;align-items:center;gap:10px}
+.spread{display:flex;justify-content:space-between;align-items:baseline;gap:10px}
+
+/* Hero progress */
+.hero{padding:20px 16px 18px}
+.big{font-size:3.4rem;font-weight:800;line-height:1;letter-spacing:-.03em}
+.big small{font-size:1.1rem;font-weight:500;letter-spacing:0;color:var(--muted);margin-left:6px}
+.bar{position:relative;height:22px;background:var(--track);border-radius:6px;margin:16px 0 8px;overflow:visible}
+.bar .fill{position:absolute;inset:0 auto 0 0;border-radius:6px;transition:width .4s ease}
+.bar .mark{position:absolute;top:-6px;bottom:-6px;width:3px;background:var(--ink);border-radius:2px}
+.bar.thin{height:8px;margin:6px 0 0}
+.bar.thin .mark{top:-4px;bottom:-4px;width:2px}
+.status{font-weight:500}
+.status.ok{color:var(--ok)} .status.risk{color:var(--fine)}
+
+.add{width:100%;margin-top:14px;padding:14px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:600;font-size:1.05rem}
+.banner{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:.92rem}
+
+.list{list-style:none;margin:0;padding:0}
+.list li{display:flex;align-items:center;gap:12px;padding:12px 0;border-bottom:1px solid var(--line)}
+.list li:last-child{border-bottom:0}
+.list .grow{flex:1;min-width:0}
+.list .note{color:var(--muted);font-size:.875rem;overflow-wrap:anywhere}
+.del{border:0;background:none;color:var(--muted);font-size:1.3rem;line-height:1;padding:6px 8px;border-radius:8px}
+.dot{width:10px;height:10px;border-radius:50%;flex:none}
+
+.sib{padding:12px 0;border-bottom:1px solid var(--line)}
+.sib:last-child{border-bottom:0}
+.name{font-weight:600}
+
+/* Nav */
+nav{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-top:1px solid var(--line);
+  padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+nav .in{max-width:560px;margin:0 auto;display:grid;grid-template-columns:repeat(4,1fr)}
+nav button{border:0;background:none;padding:12px 4px 14px;color:var(--muted);font-weight:500;font-size:.92rem}
+nav button[aria-current="page"]{color:var(--ink);font-weight:700;box-shadow:inset 0 3px 0 var(--ink)}
+
+/* Sheet */
+.scrim{position:fixed;inset:0;background:rgba(10,14,20,.45);display:none;z-index:10}
+.scrim.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;background:var(--surface);border-radius:18px 18px 0 0;
+  padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;
+  transform:translateY(100%);transition:transform .25s ease;z-index:11;max-height:92%;overflow:auto}
+.sheet.open{transform:none}
+@media (prefers-reduced-motion: reduce){.sheet,.bar .fill{transition:none}}
+.chips{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0 16px}
+.chip{border:1px solid var(--line);background:var(--bg);border-radius:999px;padding:8px 14px}
+.chip[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.seg{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-radius:10px;padding:3px;margin:8px 0 14px}
+.seg button{border:0;background:none;padding:9px;border-radius:8px;font-weight:500}
+.seg button[aria-pressed="true"]{background:var(--surface);box-shadow:0 0 0 1px var(--line)}
+label{display:block;font-size:.875rem;color:var(--muted);margin-bottom:4px}
+input,select,textarea{width:100%;padding:11px 12px;border:1px solid var(--line);border-radius:10px;background:var(--bg)}
+.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.field{margin-bottom:12px}
+.err{color:var(--fine);font-size:.9rem;min-height:1.2em;margin:4px 0}
+
+/* Picker */
+.picker{display:grid;gap:12px;margin-top:20px}
+.picker button{padding:20px;border-radius:14px;border:1px solid var(--line);background:var(--surface);font-size:1.3rem;font-weight:600;text-align:left;display:flex;align-items:center;gap:12px}
+
+/* Stats */
+.tabs{display:flex;gap:6px;overflow-x:auto;margin:6px 0 14px}
+.tabs button{border:1px solid var(--line);background:var(--surface);border-radius:999px;padding:7px 14px;white-space:nowrap}
+.tabs button[aria-pressed="true"]{background:var(--ink);color:var(--bg);border-color:var(--ink)}
+.week{display:grid;grid-template-columns:repeat(7,1fr);gap:6px;align-items:end;height:170px;padding-top:8px}
+.wday{display:flex;flex-direction:column;align-items:center;height:100%}
+.wbars{flex:1;display:flex;align-items:flex-end;gap:2px;width:100%;justify-content:center}
+.wbars span{width:28%;max-width:9px;border-radius:3px 3px 0 0;min-height:2px}
+.wlab{font-size:.75rem;color:var(--muted);margin-top:6px}
+.wlab.today{color:var(--ink);font-weight:700}
+.legend{display:flex;flex-wrap:wrap;gap:14px;margin-top:12px;font-size:.875rem}
+.legend span{display:inline-flex;align-items:center;gap:6px}
+table{width:100%;border-collapse:collapse}
+td,th{padding:10px 4px;text-align:left;border-bottom:1px solid var(--line);font-weight:400}
+th{color:var(--muted);font-size:.8rem;font-weight:500}
+td.num,th.num{text-align:right}
+tr:last-child td{border-bottom:0}
+.stack{display:flex;height:14px;border-radius:5px;overflow:hidden;background:var(--track);margin:6px 0 4px}
+
+/* Fines */
+.debt{display:flex;align-items:center;gap:10px;padding:12px 0;border-bottom:1px solid var(--line)}
+.debt:last-child{border-bottom:0}
+.btn-sec{border:1px solid var(--line);background:var(--bg);border-radius:10px;padding:8px 12px;font-size:.9rem;white-space:nowrap}
+.neg{color:var(--fine)} .pos{color:var(--ok)}
+.toast{position:fixed;left:50%;bottom:calc(84px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);
+  background:var(--ink);color:var(--bg);padding:10px 16px;border-radius:10px;font-size:.92rem;display:none;z-index:20;max-width:90%}
+.toast.show{display:block}
+</style>
+</head>
+<body>
+<main id="app"><p class="muted">Cargando…</p></main>
+<nav id="nav" hidden><div class="in">
+  <button data-tab="hoy">Hoy</button>
+  <button data-tab="multas">Multas</button>
+  <button data-tab="stats">Estadísticas</button>
+  <button data-tab="ajustes">Ajustes</button>
+</div></nav>
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-label="Añadir actividad"></div>
+<div class="toast" id="toast" role="status"></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyCH2eK5xwpN6f1LGr8a7ork2TIHYQqdjnc",
+  authDomain: "tiempo-util.firebaseapp.com",
+  projectId: "tiempo-util",
+  storageBucket: "tiempo-util.firebasestorage.app",
+  messagingSenderId: "904452110931",
+  appId: "1:904452110931:web:6554b5b7ddd7935a06e4a6"
+};
+const fbApp=initializeApp(firebaseConfig), auth=getAuth(fbApp), fs=getFirestore(fbApp);
+
+const PEOPLE=["Nico","Alex","Jacobo"];
+const PCOLOR={Nico:"var(--nico)",Alex:"var(--alex)",Jacobo:"var(--jacobo)"};
+const CATS=[
+  {id:"estudio",label:"Estudio",color:"#2F5BEA"},
+  {id:"deberes",label:"Deberes y trabajos",color:"#7B4FD6"},
+  {id:"lectura",label:"Lectura",color:"#D89A12"},
+  {id:"escritura",label:"Escritura",color:"#C24E8A"},
+  {id:"deporte",label:"Deporte",color:"#13906A"},
+  {id:"otro",label:"Otro",color:"#7A8796"}
+];
+const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
+const LS_KEY="tiempoutil.me";
+
+let db=null, me=null, authUser=undefined, denied=false, unsubs=[], tab="hoy", statTab="semana";
+let days={}, mins=[], setts=[], config=null, ready={days:false,mins:false,setts:false,config:false};
+
+/* ---------- adapters ---------- */
+const store={
+  collection:name=>({
+    doc:id=>({set:data=>setDoc(doc(fs,name,id),data)}),
+    add:data=>addDoc(collection(fs,name),data),
+    onSnapshot:(next,err)=>onSnapshot(collection(fs,name),s=>next({docs:s.docs.map(d=>({id:d.id,data:()=>d.data()}))}),err)
+  }),
+  doc:path=>({onSnapshot:(next,err)=>onSnapshot(doc(fs,...path.split("/")),s=>next({exists:s.exists(),data:()=>s.data()}),err)})
+};
+const downloads={save:async({filename,data})=>{
+  const url=URL.createObjectURL(new Blob([data],{type:filename.endsWith(".json")?"application/json":"text/csv;charset=utf-8"}));
+  const a=document.createElement("a");a.href=url;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);return {status:"saved"};
+}};
+
+/* ---------- utils ---------- */
+const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+const fmtDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Madrid",year:"numeric",month:"2-digit",day:"2-digit"});
+const todayStr=()=>fmtDate.format(new Date());
+const toD=s=>new Date(s+"T12:00:00Z");
+const addDays=(s,n)=>{const d=toD(s);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
+const dow=s=>toD(s).getUTCDay(); // 0 dom
+const isWeekend=s=>{const d=dow(s);return d===0||d===6};
+const longDate=s=>toD(s).toLocaleDateString("es-ES",{weekday:"long",day:"numeric",month:"long",timeZone:"UTC"});
+const shortDate=s=>toD(s).toLocaleDateString("es-ES",{day:"numeric",month:"short",timeZone:"UTC"});
+const cap=s=>s.charAt(0).toUpperCase()+s.slice(1);
+const fmt=m=>{m=Math.round(m||0);if(m<60)return m+" min";const h=Math.floor(m/60),r=m%60;return r?`${h} h ${String(r).padStart(2,"0")}`:`${h} h`};
+const eur=n=>(Math.round(n*100)/100).toLocaleString("es-ES",{style:"currency",currency:"EUR"});
+const fineFor=k=>Math.min(1+0.5*(k-1),3);
+function weekStart(s){const d=dow(s);return addDays(s,d===0?-6:1-d)}
+function toast(msg){const t=document.getElementById("toast");t.textContent=msg;t.classList.add("show");clearTimeout(toast._t);toast._t=setTimeout(()=>t.classList.remove("show"),3200)}
+let wq=Promise.resolve();
+function enqueue(fn){wq=wq.then(fn).catch(e=>{console.error(e);toast(e&&e.code==="permission-denied"?"No se pudo guardar: esta cuenta no tiene acceso.":"No se pudo guardar. Revisa la conexión e inténtalo otra vez.")});return wq}
+
+/* ---------- domain ---------- */
+const dayDoc=(p,d)=>days[`${p}_${d}`];
+const minutesOn=(p,d)=>{const x=dayDoc(p,d);return x?(x.entries||[]).reduce((a,e)=>a+(e.minutes||0),0):0};
+function minimumOn(p,d){
+  let best=null;
+  for(const m of mins){ if(m.person!==p||m.effectiveFrom>d)continue;
+    if(!best||m.effectiveFrom>best.effectiveFrom||(m.effectiveFrom===best.effectiveFrom&&(m.createdAt||0)>(best.createdAt||0)))best=m; }
+  if(!best)return null;
+  return isWeekend(d)?best.weekend:best.weekday;
+}
+function evaluate(p){
+  const today=todayStr(), start=config&&config.startDate;
+  const r={fines:[],streak:0,maxStreak:0,met:0,evald:0,failRun:0,nextFine:1,todayMet:false};
+  if(!start)return r;
+  let run=0,fail=0;
+  for(let d=start; d<today; d=addDays(d,1)){
+    const min=minimumOn(p,d); if(min==null)continue;
+    const done=minutesOn(p,d); r.evald++;
+    if(done>=min){r.met++;run++;fail=0;r.maxStreak=Math.max(r.maxStreak,run)}
+    else{run=0;fail++;r.fines.push({person:p,date:d,amount:fineFor(fail),k:fail,done,min})}
+  }
+  const tmin=minimumOn(p,today);
+  r.todayMet = today>=start && tmin!=null && minutesOn(p,today)>=tmin;
+  r.streak=run+(r.todayMet?1:0);
+  r.maxStreak=Math.max(r.maxStreak,r.streak);
+  r.failRun=fail; r.nextFine=fineFor(fail+1);
+  return r;
+}
+function ledger(){
+  const ev=Object.fromEntries(PEOPLE.map(p=>[p,evaluate(p)]));
+  const owe={}; PEOPLE.forEach(a=>{owe[a]={};PEOPLE.forEach(b=>owe[a][b]=0)});
+  const moves=[];
+  PEOPLE.forEach(p=>ev[p].fines.forEach(f=>{
+    PEOPLE.filter(q=>q!==p).forEach(q=>owe[p][q]+=f.amount/2);
+    moves.push({type:"fine",date:f.date,sort:f.date+"0",...f});
+  }));
+  setts.forEach(s=>{ if(owe[s.from]&&owe[s.from][s.to]!=null){owe[s.from][s.to]-=s.amount;}
+    moves.push({type:"pay",date:s.date,sort:s.date+"1"+(s.createdAt||0),...s}); });
+  const pairs=[];
+  for(let i=0;i<PEOPLE.length;i++)for(let j=i+1;j<PEOPLE.length;j++){
+    const a=PEOPLE[i],b=PEOPLE[j],n=Math.round((owe[a][b]-owe[b][a])*100)/100;
+    if(Math.abs(n)>=0.01)pairs.push(n>0?{from:a,to:b,amount:n}:{from:b,to:a,amount:-n});
+  }
+  const bal={},tot={};
+  PEOPLE.forEach(p=>{
+    bal[p]=0; tot[p]={paid:0,got:0};
+    pairs.forEach(x=>{if(x.to===p)bal[p]+=x.amount;if(x.from===p)bal[p]-=x.amount});
+    ev[p].fines.forEach(f=>tot[p].paid+=f.amount);
+    PEOPLE.filter(q=>q!==p).forEach(q=>ev[q].fines.forEach(f=>tot[p].got+=f.amount/2));
+  });
+  moves.sort((x,y)=>y.sort<x.sort?-1:1);
+  return {ev,pairs,bal,tot,moves};
+}
+
+/* ---------- render ---------- */
+function render(){
+  const app=document.getElementById("app"), nav=document.getElementById("nav");
+  if(authUser===undefined){nav.hidden=true;app.innerHTML=`<p class="muted">Cargando…</p>`;return}
+  if(!authUser){nav.hidden=true;app.innerHTML=`<h1>Tiempo útil</h1><p class="muted">Entra con la cuenta de Google que tienes dada de alta.</p>
+    <button class="add" data-act="login">Entrar con Google</button><p class="err" id="loginerr"></p>`;return}
+  if(denied){nav.hidden=true;app.innerHTML=`<h1>Sin acceso</h1><p class="muted">La cuenta ${esc(authUser.email)} no está en la lista de los tres. Entra con otra cuenta de Google.</p>
+    <button class="add" data-act="logout">Cambiar de cuenta</button>`;return}
+  if(!me){nav.hidden=true;app.innerHTML=`<h1>¿Quién eres?</h1><p class="muted small">Solo se pregunta una vez en este dispositivo.</p>
+    <div class="picker">${PEOPLE.map(p=>`<button data-pick="${p}"><span class="dot" style="background:${PCOLOR[p]};width:14px;height:14px"></span>${p}</button>`).join("")}</div>`;return}
+  if(!ready.days||!ready.mins||!ready.config){app.innerHTML=`<p class="muted">Cargando…</p>`;return}
+  nav.hidden=false;
+  nav.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===(tab==="exportar"?"ajustes":tab)?"page":"false"));
+  app.innerHTML=({hoy:renderHoy,multas:renderMultas,stats:renderStats,ajustes:renderAjustes,exportar:renderExportar})[tab]();
+}
+
+function progressBar(p,d,thin){
+  const done=minutesOn(p,d), min=minimumOn(p,d)||0;
+  const scale=Math.max(min*1.4,done,30);
+  return `<div class="bar${thin?" thin":""}" role="img" aria-label="${fmt(done)} de ${fmt(min)}">
+    <div class="fill" style="width:${Math.min(100,done/scale*100)}%;background:${PCOLOR[p]}"></div>
+    ${min?`<div class="mark" style="left:calc(${min/scale*100}% - 1px)"></div>`:""}</div>`;
+}
+
+function renderHoy(){
+  const t=todayStr(), start=config&&config.startDate, ev=evaluate(me);
+  const done=minutesOn(me,t), min=minimumOn(me,t);
+  const pre=!start||t<start;
+  let status="";
+  if(pre) status=`<span class="muted">Aún no cuenta</span>`;
+  else if(min==null) status=`<span class="muted">Sin mínimo definido</span>`;
+  else if(done>=min) status=`<span class="status ok">Mínimo cumplido</span>`;
+  else status=`<span class="status risk">Te faltan ${fmt(min-done)} · multa en juego: ${eur(ev.nextFine)}</span>`;
+  const entries=(dayDoc(me,t)?.entries||[]).slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0));
+  return `
+  ${!start?`<div class="banner">Todavía no hay datos. Nico: importa la copia en Ajustes → Exportar e importar.</div>`:""}
+  ${pre&&start?`<div class="banner">La cuenta empieza el ${longDate(start)}. Lo que registres antes no cuenta para multas ni rachas.</div>`:""}
+  <div class="spread"><h1>${cap(longDate(t))}</h1><span class="muted small">${me}</span></div>
+  <div class="card hero" style="margin-top:12px">
+    <div class="big">${fmt(done)}<small>de ${min!=null?fmt(min):"—"}</small></div>
+    ${progressBar(me,t)}
+    <div class="spread small">${status}<span class="muted">Racha ${ev.streak}</span></div>
+    <button class="add" data-act="open-add">Añadir actividad</button>
+  </div>
+  <h2>Hoy has hecho</h2>
+  ${entries.length?`<ul class="list card" style="padding:4px 16px">${entries.map(e=>`
+    <li><span class="dot" style="background:${CAT[e.category]?.color||"#888"}"></span>
+      <div class="grow"><div><b>${fmt(e.minutes)}</b> · ${esc(CAT[e.category]?.label||e.category)}${e.start?` <span class="muted small">${esc(e.start)}–${esc(e.end)}</span>`:""}</div>
+      ${e.note?`<div class="note">${esc(e.note)}</div>`:""}</div>
+      <button class="del" data-del="${esc(e.id)}" aria-label="Borrar">×</button></li>`).join("")}</ul>`
+    :`<p class="muted">Nada todavía. Toca “Añadir actividad” cuando termines un bloque.</p>`}
+  <h2>Los demás</h2>
+  <div class="card" style="padding:4px 16px">${PEOPLE.filter(p=>p!==me).map(p=>{
+    const e=evaluate(p),d=minutesOn(p,t),m=minimumOn(p,t);
+    return `<div class="sib"><div class="spread"><span class="name">${p}</span>
+      <span class="small ${m!=null&&d>=m?"pos":"muted"}">${fmt(d)} / ${m!=null?fmt(m):"—"}</span></div>
+      ${progressBar(p,t,true)}
+      <div class="muted small" style="margin-top:6px">Racha ${e.streak}${e.failRun?` · ${e.failRun} ${e.failRun===1?"fallo":"fallos"} seguidos`:""}</div></div>`}).join("")}
+  </div>`;
+}
+
+function renderMultas(){
+  const L=ledger();
+  return `<h1>Multas</h1>
+  <h2>Saldo pendiente</h2>
+  <div class="card" style="padding:4px 16px">${PEOPLE.map(p=>`
+    <div class="debt"><span class="dot" style="background:${PCOLOR[p]}"></span><span class="name" style="flex:1">${p}</span>
+    <b class="${L.bal[p]<-0.005?"neg":L.bal[p]>0.005?"pos":""}">${L.bal[p]>0.005?"+":""}${eur(L.bal[p])}</b></div>`).join("")}
+  </div>
+  <p class="muted small">Positivo: le deben dinero. Negativo: debe dinero.</p>
+  <h2>Quién debe a quién</h2>
+  ${L.pairs.length?`<div class="card" style="padding:4px 16px">${L.pairs.map(x=>`
+    <div class="debt"><div style="flex:1"><b>${x.from}</b> debe <b>${eur(x.amount)}</b> a <b>${x.to}</b></div>
+    <button class="btn-sec" data-settle="${x.from}|${x.to}|${x.amount}">Marcar pagado</button></div>`).join("")}</div>`
+    :`<p class="muted">Todo saldado.</p>`}
+  <h2>Totales históricos</h2>
+  <div class="card"><table><tr><th></th><th class="num">Multas pagadas</th><th class="num">Cobrado</th></tr>
+  ${PEOPLE.map(p=>`<tr><td>${p}</td><td class="num">${eur(L.tot[p].paid)}</td><td class="num">${eur(L.tot[p].got)}</td></tr>`).join("")}</table></div>
+  <h2>Movimientos</h2>
+  ${L.moves.length?`<ul class="list card" style="padding:4px 16px">${L.moves.slice(0,150).map(m=>m.type==="fine"?`
+    <li><span class="dot" style="background:var(--fine)"></span><div class="grow">
+      <div><b>${m.person}</b> · multa de ${eur(m.amount)}</div>
+      <div class="note">${shortDate(m.date)} · ${fmt(m.done)} de ${fmt(m.min)} · ${m.k===1?"primer fallo":`${m.k}º fallo seguido`} · ${eur(m.amount/2)} a ${PEOPLE.filter(q=>q!==m.person).join(" y ")}</div></div></li>`:`
+    <li><span class="dot" style="background:var(--ok)"></span><div class="grow">
+      <div><b>${esc(m.from)}</b> pagó ${eur(m.amount)} a <b>${esc(m.to)}</b></div>
+      <div class="note">${shortDate(m.date)}${m.by?` · lo marcó ${esc(m.by)}`:""}</div></div></li>`).join("")}</ul>`
+    :`<p class="muted">Sin multas por ahora.</p>`}`;
+}
+
+function sumRange(p,from,to){let s=0;for(let d=from;d<=to;d=addDays(d,1))s+=minutesOn(p,d);return s}
+function allDates(){return [...new Set(Object.values(days).map(x=>x.date))].sort()}
+function renderStats(){
+  const t=todayStr(), tabs=[["semana","Semana"],["ranking","Ranking"],["rachas","Rachas"],["categorias","Categorías"]];
+  let body="";
+  if(statTab==="semana"){
+    const ws=weekStart(t), ds=[...Array(7)].map((_,i)=>addDays(ws,i));
+    const vals=ds.map(d=>PEOPLE.map(p=>minutesOn(p,d)));
+    const max=Math.max(60,...vals.flat());
+    const labels=["L","M","X","J","V","S","D"];
+    body=`<div class="card"><div class="week">${ds.map((d,i)=>`
+      <div class="wday"><div class="wbars">${PEOPLE.map((p,j)=>`<span title="${p}: ${fmt(vals[i][j])}" style="height:${vals[i][j]/max*100}%;background:${PCOLOR[p]}"></span>`).join("")}</div>
+      <div class="wlab${d===t?" today":""}">${labels[i]}</div></div>`).join("")}</div>
+      <div class="legend">${PEOPLE.map(p=>`<span><span class="dot" style="background:${PCOLOR[p]}"></span>${p} · ${fmt(sumRange(p,ws,t))}</span>`).join("")}</div></div>`;
+  } else if(statTab==="ranking"){
+    const ws=weekStart(t), ms=t.slice(0,8)+"01", all=allDates(), first=all[0]||t;
+    const block=(title,from)=>{const rows=PEOPLE.map(p=>({p,m:sumRange(p,from,t)})).sort((a,b)=>b.m-a.m);
+      return `<h2>${title}</h2><div class="card"><table>${rows.map((r,i)=>`<tr><td style="width:28px" class="muted">${i+1}</td><td><span class="dot" style="display:inline-block;background:${PCOLOR[r.p]};margin-right:8px"></span>${r.p}</td><td class="num"><b>${fmt(r.m)}</b></td></tr>`).join("")}</table></div>`};
+    body=block("Esta semana",ws)+block("Este mes",ms)+block("Total",first<t?first:t);
+  } else if(statTab==="rachas"){
+    body=`<div class="card"><table><tr><th></th><th class="num">Actual</th><th class="num">Máxima</th><th class="num">Cumplidos</th></tr>
+    ${PEOPLE.map(p=>{const e=evaluate(p);return `<tr><td>${p}</td><td class="num"><b>${e.streak}</b></td><td class="num">${e.maxStreak}</td><td class="num">${e.evald?Math.round(e.met/e.evald*100)+"%":"—"}</td></tr>`}).join("")}</table></div>
+    <p class="muted small">Cumplidos: porcentaje de días cerrados en los que se llegó al mínimo.</p>`;
+  } else {
+    body=PEOPLE.map(p=>{const tot={};Object.values(days).filter(x=>x.person===p).forEach(x=>(x.entries||[]).forEach(e=>tot[e.category]=(tot[e.category]||0)+(e.minutes||0)));
+      const sum=Object.values(tot).reduce((a,b)=>a+b,0);
+      return `<div class="card" style="margin-bottom:10px"><div class="spread"><span class="name">${p}</span><span class="muted small">${fmt(sum)}</span></div>
+      <div class="stack">${CATS.filter(c=>tot[c.id]).map(c=>`<span style="width:${tot[c.id]/sum*100}%;background:${c.color}"></span>`).join("")}</div>
+      <div class="legend" style="margin-top:6px">${CATS.filter(c=>tot[c.id]).map(c=>`<span><span class="dot" style="background:${c.color}"></span>${c.label} ${fmt(tot[c.id])}</span>`).join("")||`<span class="muted">Sin datos</span>`}</div></div>`}).join("");
+  }
+  return `<h1>Estadísticas</h1><div class="tabs">${tabs.map(([k,l])=>`<button data-stat="${k}" aria-pressed="${statTab===k}">${l}</button>`).join("")}</div>${body}`;
+}
+
+function minOptions(sel){let o="";for(let m=0;m<=360;m+=15)o+=`<option value="${m}"${m===sel?" selected":""}>${m?fmt(m):"0 min"}</option>`;return o}
+function renderAjustes(){
+  const t=todayStr(), tm=addDays(t,1);
+  const cur=mins.filter(m=>m.person===me);
+  const curWd=minimumOn(me, isWeekend(tm)?addDays(tm, dow(tm)===6?2:1):tm) ;
+  const latest=cur.slice().sort((a,b)=>(b.effectiveFrom+(b.createdAt||0))>(a.effectiveFrom+(a.createdAt||0))?1:-1)[0];
+  const wd=latest?latest.weekday:60, we=latest?latest.weekend:60;
+  const hist=cur.slice().sort((a,b)=>(b.createdAt||0)-(a.createdAt||0));
+  return `<h1>Ajustes</h1>
+  <h2>Mi mínimo diario</h2>
+  <div class="card">
+    <div class="two">
+      <div class="field"><label for="mwd">Lunes a viernes</label><select id="mwd">${minOptions(wd)}</select></div>
+      <div class="field"><label for="mwe">Sábado y domingo</label><select id="mwe">${minOptions(we)}</select></div>
+    </div>
+    <p class="muted small" style="margin:0 0 12px">El cambio se aplica desde mañana, ${longDate(tm)}. Hoy sigue valiendo el mínimo actual.</p>
+    <button class="add" style="margin-top:0" data-act="save-min">Guardar mínimo</button>
+  </div>
+  <h2>Mínimos de todos</h2>
+  <div class="card"><table><tr><th></th><th class="num">L–V</th><th class="num">S–D</th></tr>
+  ${PEOPLE.map(p=>{const l=mins.filter(m=>m.person===p&&m.effectiveFrom<=tm).sort((a,b)=>a.effectiveFrom===b.effectiveFrom?(b.createdAt||0)-(a.createdAt||0):(b.effectiveFrom>a.effectiveFrom?1:-1))[0];
+    return `<tr><td>${p}</td><td class="num">${l?fmt(l.weekday):"—"}</td><td class="num">${l?fmt(l.weekend):"—"}</td></tr>`}).join("")}</table></div>
+  <h2>Mi historial de cambios</h2>
+  ${hist.length?`<ul class="list card" style="padding:4px 16px">${hist.map(h=>`<li><div class="grow">L–V ${fmt(h.weekday)} · S–D ${fmt(h.weekend)}<div class="note">Desde ${longDate(h.effectiveFrom)}</div></div></li>`).join("")}</ul>`:`<p class="muted">Sin cambios.</p>`}
+  <h2>Datos</h2>
+  <div class="card"><div class="spread"><span>Descargar una copia de todo</span><button class="btn-sec" data-tab="exportar">Exportar e importar</button></div></div>
+  <h2>Dispositivo</h2>
+  <div class="card"><div class="spread"><span>Estás registrando como <b>${me}</b></span><button class="btn-sec" data-act="switch">Cambiar</button></div></div>
+  <h2>Cuenta</h2>
+  <div class="card"><div class="spread"><span class="small" style="overflow-wrap:anywhere">${esc(authUser?.email||"")}</span><button class="btn-sec" data-act="logout">Cerrar sesión</button></div></div>`;
+}
+
+/* ---------- export ---------- */
+function renderExportar(){
+  const t=todayStr(), all=allDates(), nEntries=Object.values(days).reduce((a,x)=>a+(x.entries||[]).length,0);
+  const L=ledger(), nFines=PEOPLE.reduce((a,p)=>a+L.ev[p].fines.length,0);
+  const off=false;
+  return `<div class="row"><button class="btn-sec" data-tab="ajustes" aria-label="Volver a Ajustes">‹ Ajustes</button></div>
+  <h1 style="margin-top:14px">Exportar e importar</h1>
+  <p class="muted small">Datos de los tres hasta hoy, ${longDate(t)}.</p>
+  <div class="card"><table>
+    <tr><td>Actividades registradas</td><td class="num"><b>${nEntries}</b></td></tr>
+    <tr><td>Días con registros</td><td class="num"><b>${all.length}</b></td></tr>
+    <tr><td>Multas</td><td class="num"><b>${nFines}</b></td></tr>
+    <tr><td>Pagos marcados</td><td class="num"><b>${setts.length}</b></td></tr>
+    <tr><td>Cambios de mínimo</td><td class="num"><b>${mins.length}</b></td></tr>
+  </table></div>
+  <h2>Copia completa</h2>
+  <div class="card"><p class="small" style="margin-top:0">Un archivo JSON con todo. Es el que sirve para pasar los datos a otra versión de la app.</p>
+    <button class="add" style="margin-top:0" data-exp="json" ${off?"disabled":""}>Descargar copia (.json)</button></div>
+  <h2>Para Excel</h2>
+  <div class="card"><p class="small" style="margin-top:0">Tablas que se abren directamente en Excel o Google Sheets.</p>
+    <div style="display:grid;gap:10px">
+      <button class="btn-sec" style="padding:12px" data-exp="actividades" ${off?"disabled":""}>Actividades (.csv)</button>
+      <button class="btn-sec" style="padding:12px" data-exp="dias" ${off?"disabled":""}>Resumen por día (.csv)</button>
+      <button class="btn-sec" style="padding:12px" data-exp="multas" ${off?"disabled":""}>Multas y pagos (.csv)</button>
+    </div></div>
+  <h2>Importar copia</h2>
+  <div class="card"><p class="small" style="margin-top:0">Carga un archivo .json exportado de esta app o de la versión anterior. Los días que ya existan se sustituyen; los mínimos y pagos repetidos no se duplican.</p>
+    <div class="field"><input id="impfile" type="file" accept=".json,application/json"></div>
+    <button class="btn-sec" style="padding:12px;width:100%" data-act="import">Importar</button>
+    <p class="err" id="imperr"></p></div>`;
+}
+const csvCell=v=>{const s=String(v??"");return /[;"\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s};
+const csv=rows=>"\uFEFF"+rows.map(r=>r.map(csvCell).join(";")).join("\r\n");
+const num=n=>String(Math.round(n*100)/100).replace(".",",");
+function buildExport(kind){
+  const t=todayStr(), stamp=t;
+  if(kind==="json"){
+    return {filename:`tiempo-util-${stamp}.json`,data:JSON.stringify({exportedAt:new Date().toISOString(),app:"tiempo-util",version:1,
+      people:PEOPLE,categories:CATS.map(c=>({id:c.id,label:c.label})),config,minimums:mins,days:Object.values(days),settlements:setts},null,2)};
+  }
+  if(kind==="actividades"){
+    const rows=[["Fecha","Persona","Categoría","Minutos","Desde","Hasta","Nota"]];
+    Object.values(days).slice().sort((a,b)=>a.date<b.date?-1:a.date>b.date?1:a.person<b.person?-1:1)
+      .forEach(x=>(x.entries||[]).forEach(e=>rows.push([x.date,x.person,CAT[e.category]?.label||e.category,e.minutes,e.start||"",e.end||"",e.note||""])));
+    return {filename:`actividades-${stamp}.csv`,data:csv(rows)};
+  }
+  if(kind==="dias"){
+    const rows=[["Fecha","Persona","Minutos","Mínimo","Cumplido","Multa (€)"]];
+    const L=ledger(), fines={}; PEOPLE.forEach(p=>L.ev[p].fines.forEach(f=>fines[p+f.date]=f.amount));
+    const all=allDates(), start=config?.startDate, from=[all[0],start].filter(Boolean).sort()[0];
+    if(from) for(let d=from; d<=t; d=addDays(d,1)) PEOPLE.forEach(p=>{
+      const m=minimumOn(p,d), done=minutesOn(p,d), counts=start&&d>=start&&d<t&&m!=null;
+      rows.push([d,p,done,m??"",counts?(done>=m?"Sí":"No"):(d===t?"En curso":"No cuenta"),fines[p+d]!=null?num(fines[p+d]):""]);
+    });
+    return {filename:`resumen-diario-${stamp}.csv`,data:csv(rows)};
+  }
+  if(kind==="multas"){
+    const L=ledger(), rows=[["Fecha","Tipo","Quién","A quién","Importe (€)","Detalle"]];
+    L.moves.slice().reverse().forEach(m=>{
+      if(m.type==="fine") rows.push([m.date,"Multa",m.person,PEOPLE.filter(q=>q!==m.person).join(" y "),num(m.amount),`${m.done} de ${m.min} min · fallo ${m.k} seguido`]);
+      else rows.push([m.date,"Pago",m.from,m.to,num(m.amount),m.by?`marcado por ${m.by}`:""]);
+    });
+    return {filename:`multas-y-pagos-${stamp}.csv`,data:csv(rows)};
+  }
+}
+async function doImport(){
+  const err=document.getElementById("imperr"), f=document.getElementById("impfile").files[0]; err.textContent="";
+  if(!f){err.textContent="Elige primero el archivo .json.";return}
+  let j; try{j=JSON.parse(await f.text())}catch(_){err.textContent="El archivo no es un JSON válido.";return}
+  if(j.app!=="tiempo-util"||!Array.isArray(j.days)){err.textContent="Este archivo no es una copia de Tiempo útil.";return}
+  const M=j.minimums||[], S=j.settlements||[];
+  if(!confirm(`Se importarán ${j.days.length} días, ${M.length} mínimos y ${S.length} pagos. ¿Continuar?`))return;
+  const ops=[];
+  if(j.config)ops.push([doc(fs,"config","main"),j.config]);
+  j.days.forEach(d=>{if(d.person&&d.date)ops.push([doc(fs,"days",`${d.person}_${d.date}`),d])});
+  M.forEach(m=>ops.push([doc(fs,"minimums",`${m.person}_${m.effectiveFrom}_${m.createdAt||0}`),m]));
+  S.forEach(s=>ops.push([doc(fs,"settlements",`${s.from}_${s.to}_${s.createdAt||0}`),s]));
+  try{
+    for(let i=0;i<ops.length;i+=400){const b=writeBatch(fs);ops.slice(i,i+400).forEach(([r,d])=>b.set(r,d));await b.commit()}
+    toast(`Importado: ${ops.length} elementos`);
+  }catch(e){console.error(e);err.textContent=e.code==="permission-denied"?"Esta cuenta no tiene permiso para escribir.":"No se pudo importar. Revisa la conexión."}
+}
+async function doExport(kind){
+  try{ await downloads.save(buildExport(kind)); toast("Archivo descargado"); }
+  catch(e){ if(e&&e.code==="declined")return;
+    if(e&&e.code==="rate_limited"){toast("Ya hay una descarga pendiente de confirmar.");return}
+    console.error(e); toast("No se pudo descargar el archivo."); }
+}
+
+/* ---------- add sheet ---------- */
+let form={cat:"estudio",mode:"horario"};
+function openAdd(){
+  if(todayStr()<(config?.startDate||"")) {}
+  const s=document.getElementById("sheet");
+  s.innerHTML=`<div class="spread"><h1>Añadir actividad</h1><button class="del" data-act="close" aria-label="Cerrar">×</button></div>
+  <div class="chips">${CATS.map(c=>`<button class="chip" data-cat="${c.id}" aria-pressed="${form.cat===c.id}">${c.label}</button>`).join("")}</div>
+  <div class="seg"><button data-mode="horario" aria-pressed="${form.mode==="horario"}">De … a …</button><button data-mode="minutos" aria-pressed="${form.mode==="minutos"}">Minutos</button></div>
+  <div id="modeFields">${modeFields()}</div>
+  <div class="field"><label for="fnote">Nota ${form.cat==="otro"?"(obligatoria)":"(opcional)"}</label><input id="fnote" maxlength="140" placeholder="Ej.: tema 3 de Finanzas"></div>
+  <div class="err" id="ferr"></div>
+  <button class="add" data-act="save-entry">Guardar</button>`;
+  document.getElementById("scrim").classList.add("open"); s.classList.add("open");
+}
+function modeFields(){return form.mode==="horario"
+  ?`<div class="two"><div class="field"><label for="fs">Desde</label><input id="fs" type="time"></div><div class="field"><label for="fe">Hasta</label><input id="fe" type="time"></div></div>`
+  :`<div class="field"><label for="fm">Minutos</label><input id="fm" type="number" inputmode="numeric" min="1" max="720" placeholder="90"></div>`}
+function closeAdd(){document.getElementById("scrim").classList.remove("open");document.getElementById("sheet").classList.remove("open")}
+function saveEntry(){
+  const err=document.getElementById("ferr"); err.textContent="";
+  let minutes, start=null, end=null;
+  if(form.mode==="horario"){
+    start=document.getElementById("fs").value; end=document.getElementById("fe").value;
+    if(!start||!end){err.textContent="Pon la hora de inicio y la de fin.";return}
+    const [a,b]=[start,end].map(x=>{const [h,m]=x.split(":").map(Number);return h*60+m});
+    if(b<=a){err.textContent="La hora de fin tiene que ser posterior a la de inicio (dentro del mismo día).";return}
+    minutes=b-a;
+  } else {
+    minutes=parseInt(document.getElementById("fm").value,10);
+    if(!minutes||minutes<1||minutes>720){err.textContent="Pon un número de minutos entre 1 y 720.";return}
+  }
+  const note=document.getElementById("fnote").value.trim();
+  if(form.cat==="otro"&&!note){err.textContent="En “Otro” explica brevemente qué has hecho.";return}
+  const t=todayStr(), id=`${me}_${t}`;
+  const entry={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),category:form.cat,minutes,start,end,note,createdAt:Date.now()};
+  closeAdd();
+  enqueue(async()=>{
+    const cur=days[id]; const entries=[...(cur?.entries||[]),entry];
+    await db.collection("days").doc(id).set({person:me,date:t,entries,total:entries.reduce((x,e)=>x+e.minutes,0)});
+    toast(`Guardado: ${fmt(minutes)} de ${CAT[form.cat].label.toLowerCase()}`);
+  });
+}
+function deleteEntry(eid){
+  if(!confirm("¿Borrar esta actividad?"))return;
+  const t=todayStr(), id=`${me}_${t}`;
+  enqueue(async()=>{
+    const cur=days[id]; if(!cur)return;
+    const entries=(cur.entries||[]).filter(e=>e.id!==eid);
+    await db.collection("days").doc(id).set({person:me,date:t,entries,total:entries.reduce((x,e)=>x+e.minutes,0)});
+  });
+}
+
+/* ---------- events ---------- */
+document.addEventListener("click",e=>{
+  const b=e.target.closest("button"); if(!b){ if(e.target.id==="scrim")closeAdd(); return }
+  if(b.dataset.pick){me=b.dataset.pick;try{localStorage.setItem(LS_KEY,me)}catch(_){}render();return}
+  if(b.dataset.tab){tab=b.dataset.tab;render();window.scrollTo(0,0);return}
+  if(b.dataset.exp){doExport(b.dataset.exp);return}
+  if(b.dataset.stat){statTab=b.dataset.stat;render();return}
+  if(b.dataset.del){deleteEntry(b.dataset.del);return}
+  if(b.dataset.cat){form.cat=b.dataset.cat;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.cat===form.cat));
+    document.querySelector('label[for="fnote"]').textContent="Nota "+(form.cat==="otro"?"(obligatoria)":"(opcional)");return}
+  if(b.dataset.mode){form.mode=b.dataset.mode;document.querySelectorAll(".seg button").forEach(c=>c.setAttribute("aria-pressed",c.dataset.mode===form.mode));document.getElementById("modeFields").innerHTML=modeFields();return}
+  if(b.dataset.settle){const [from,to,amt]=b.dataset.settle.split("|");const amount=Number(amt);
+    if(!confirm(`¿Confirmas que ${from} ha pagado ${eur(amount)} a ${to}?`))return;
+    enqueue(async()=>{await db.collection("settlements").add({from,to,amount,date:todayStr(),createdAt:Date.now(),by:me});toast("Pago registrado")});return}
+  const act=b.dataset.act;
+  if(act==="open-add")openAdd();
+  else if(act==="close")closeAdd();
+  else if(act==="login"){signInWithPopup(auth,new GoogleAuthProvider()).catch(e=>{const el=document.getElementById("loginerr");if(el&&e.code!=="auth/popup-closed-by-user"&&e.code!=="auth/cancelled-popup-request")el.textContent="No se pudo iniciar sesión ("+e.code+"). Si usas el navegador de otra app, abre la página en Safari o Chrome."})}
+  else if(act==="logout"){signOut(auth)}
+  else if(act==="import")doImport();
+  else if(act==="save-entry")saveEntry();
+  else if(act==="switch"){if(confirm("¿Cambiar de persona en este dispositivo?")){me=null;try{localStorage.removeItem(LS_KEY)}catch(_){}render()}}
+  else if(act==="save-min"){
+    const weekday=Number(document.getElementById("mwd").value), weekend=Number(document.getElementById("mwe").value);
+    const eff=addDays(todayStr(),1);
+    enqueue(async()=>{await db.collection("minimums").add({person:me,weekday,weekend,effectiveFrom:eff,createdAt:Date.now()});toast(`Mínimo guardado. Se aplica desde mañana.`)});
+  }
+});
+document.getElementById("scrim").addEventListener("click",closeAdd);
+
+/* ---------- boot ---------- */
+try{const s=localStorage.getItem(LS_KEY);if(PEOPLE.includes(s))me=s}catch(_){}
+render();
+let lastDay=todayStr();
+setInterval(()=>{const t=todayStr();if(t!==lastDay){lastDay=t;render()}},60000);
+onAuthStateChanged(auth,user=>{
+  unsubs.forEach(u=>u());unsubs=[];days={};mins=[];setts=[];config=null;denied=false;
+  ready={days:false,mins:false,setts:false,config:false};
+  authUser=user||null; db=user?store:null;
+  if(!user){render();return}
+  const onErr=e=>{console.error(e);if(e.code==="permission-denied"){denied=true;render()}else toast("Se perdió la conexión con los datos. Recarga la página.")};
+  unsubs.push(db.collection("days").onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());days=o;ready.days=true;render()},onErr));
+  unsubs.push(db.collection("minimums").onSnapshot(s=>{mins=s.docs.map(d=>d.data());ready.mins=true;render()},onErr));
+  unsubs.push(db.collection("settlements").onSnapshot(s=>{setts=s.docs.map(d=>d.data());ready.setts=true;render()},onErr));
+  unsubs.push(db.doc("config/main").onSnapshot(s=>{config=s.exists?s.data():null;ready.config=true;render()},onErr));
+  render();
+});
+</script>
+</body>
+</html>
