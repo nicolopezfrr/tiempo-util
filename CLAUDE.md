@@ -41,12 +41,12 @@ Principio que manda sobre todo lo demás: **simple y sin fricción**. Registrar 
 
 Las multas no se guardan: se derivan siempre de `days` + `minimums`. Los saldos son multas menos pagos.
 
-En el dispositivo, `localStorage["tiempoutil.me"]` guarda qué hermano es (se elige una vez) y `localStorage["tiempoutil.timer"]` guarda el cronómetro en marcha como `{ person, start }` (milisegundos). No va a Firestore: solo se ve en el dispositivo donde se empezó, y sigue contando aunque se cierre la app porque el tiempo se calcula desde `start`.
+En el dispositivo, `localStorage["tiempoutil.me"]` guarda qué hermano es (se elige una vez) y `localStorage["tiempoutil.timer"]` guarda el cronómetro en marcha como `{ person, start, cat }` (`start` en milisegundos, `cat` es la categoría elegida al empezar). No va a Firestore: solo se ve en el dispositivo donde se empezó, y sigue contando aunque se cierre la app porque el tiempo se calcula desde `start`.
 
 ## Pantallas actuales
 
 Barra inferior con cuatro pestañas:
-1. **Hoy:** progreso frente al mínimo, botones "Empiezo ahora" (cronómetro; al tocar "Termino" abre "Añadir actividad" con las horas puestas) y "Añadir actividad", bloques de hoy (editar ✎ y borrar ×), enlace al historial, estado de los otros dos.
+1. **Hoy:** progreso frente al mínimo, botones "Empiezo ahora" (cronómetro: se elige la categoría con un toque y arranca; al tocar "Termino" abre "Añadir actividad" con las horas y la categoría puestas) y "Añadir actividad", bloques de hoy (editar ✎ y borrar ×), enlace al historial, estado de los otros dos.
 2. **Multas:** saldo de cada uno, quién debe a quién con "Marcar pagado", totales históricos, movimientos.
 3. **Estadísticas:** semana (gráfica), ranking (semana/mes/total), rachas, categorías.
 4. **Ajustes:** mi mínimo, mínimos de todos, historial de cambios, mis actividades (subpantalla "Historial": todas mis actividades por día, con editar a la baja y borrar), exportar/importar (JSON y CSV), cambiar persona, cerrar sesión.

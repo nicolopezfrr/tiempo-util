@@ -341,17 +341,22 @@ const entryRow=(dayId,e)=>`
 /* ---------- timer ---------- */
 function myTimer(){try{const x=JSON.parse(localStorage.getItem(TIMER_KEY)||"null");return x&&x.person===me&&typeof x.start==="number"?x:null}catch(_){return null}}
 function setTimer(v){try{v?localStorage.setItem(TIMER_KEY,JSON.stringify(v)):localStorage.removeItem(TIMER_KEY)}catch(_){}}
+let timerPick=false;
 function timerBlock(){
   const tm=myTimer();
+  if(!tm&&timerPick)return `<div class="timer"><span class="small muted">¿Qué vas a hacer?</span>
+    <div class="chips" style="margin:8px 0 0">${CATS.map(c=>`<button class="chip" data-tcat="${c.id}">${c.label}</button>`).join("")}</div>
+    <button class="link" data-act="timer-pick-cancel">Cancelar</button></div>`;
   if(!tm)return `<div class="two btns"><button class="add" data-act="timer-start">Empiezo ahora</button><button class="add alt" data-act="open-add">Añadir actividad</button></div>`;
   const sd=fmtDate.format(new Date(tm.start)), cut=sd!==todayStr();
-  return `<div class="timer"><div class="spread"><span class="small muted">En marcha desde las ${hm(tm.start)}${cut?` del ${shortDate(sd)}`:""}</span><span class="clock" id="tclock">${clock(Date.now()-tm.start)}</span></div>
+  return `<div class="timer"><div class="spread"><span class="small muted">${CAT[tm.cat]?`<span class="dot" style="display:inline-block;background:${CAT[tm.cat].color};margin-right:6px"></span><b style="color:var(--ink)">${CAT[tm.cat].label}</b> · en marcha`:"En marcha"} desde las ${hm(tm.start)}${cut?` del ${shortDate(sd)}`:""}</span><span class="clock" id="tclock">${clock(Date.now()-tm.start)}</span></div>
     ${cut?`<p class="muted small" style="margin:6px 0 0">Empezó antes de medianoche: solo cuenta desde las 00:00.</p>`:""}
     <button class="add" data-act="timer-stop">Termino</button>
     <button class="link" data-act="timer-discard">Descartar</button></div>`;
 }
-function startTimer(){
-  setTimer({person:me,start:Date.now()});
+function startTimer(cat){
+  timerPick=false;
+  setTimer({person:me,start:Date.now(),cat});
   if(!myTimer()){toast("Este navegador no deja guardar el cronómetro.");return}
   render();
 }
@@ -360,7 +365,7 @@ function stopTimer(){
   const t=todayStr(), cut=fmtDate.format(new Date(tm.start))!==t;
   const start=cut?"00:00":hm(tm.start), end=hm(Date.now());
   if(start===end){setTimer(null);render();toast("Ha durado menos de un minuto: no se guarda nada.");return}
-  openAdd({start,end,cut});
+  openAdd({start,end,cut,cat:tm.cat});
 }
 setInterval(()=>{const el=document.getElementById("tclock"),tm=myTimer();if(el&&tm)el.textContent=clock(Date.now()-tm.start)},1000);
 window.addEventListener("storage",e=>{if(e.key===TIMER_KEY)render()});
@@ -563,7 +568,7 @@ async function doExport(kind){
 /* ---------- add sheet ---------- */
 let form={cat:"estudio",mode:"horario",pre:null,edit:null};
 function openAdd(pre){
-  form.pre=pre||null; form.edit=null; if(pre)form.mode="horario";
+  form.pre=pre||null; form.edit=null; if(pre)form.mode="horario"; if(CAT[pre?.cat])form.cat=pre.cat;
   const s=document.getElementById("sheet"); s.setAttribute("aria-label","Añadir actividad");
   s.innerHTML=`<div class="spread"><h1>Añadir actividad</h1><button class="del" data-act="close" aria-label="Cerrar">×</button></div>
   ${pre?.cut?`<div class="banner" style="margin:10px 0 0">El día anterior se cerró a medianoche: el tramo de antes de las 00:00 no cuenta.</div>`:""}
@@ -682,6 +687,7 @@ document.addEventListener("click",e=>{
   if(b.dataset.tab){tab=b.dataset.tab;render();window.scrollTo(0,0);return}
   if(b.dataset.exp){doExport(b.dataset.exp);return}
   if(b.dataset.stat){statTab=b.dataset.stat;render();return}
+  if(b.dataset.tcat){startTimer(b.dataset.tcat);return}
   if(b.dataset.edit){openEdit(b.dataset.day,b.dataset.edit);return}
   if(b.dataset.del){deleteEntry(b.dataset.day,b.dataset.del);return}
   if(b.dataset.cat){form.cat=b.dataset.cat;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.cat===form.cat));
@@ -699,7 +705,8 @@ document.addEventListener("click",e=>{
   else if(act==="save-entry")saveEntry();
   else if(act==="save-edit")saveEdit();
   else if(act==="delete-edit"){if(form.edit&&deleteEntry(form.edit.dayId,form.edit.eid))closeAdd()}
-  else if(act==="timer-start")startTimer();
+  else if(act==="timer-start"){timerPick=true;render()}
+  else if(act==="timer-pick-cancel"){timerPick=false;render()}
   else if(act==="timer-stop")stopTimer();
   else if(act==="timer-discard"){if(confirm("¿Descartar el cronómetro? No se guardará nada.")){setTimer(null);render()}}
   else if(act==="switch"){if(confirm("¿Cambiar de persona en este dispositivo?")){me=null;try{localStorage.removeItem(LS_KEY)}catch(_){}render()}}
