@@ -56,6 +56,14 @@ h2{font-size:1rem;font-weight:600;margin:28px 0 10px}
 .status.ok{color:var(--ok)} .status.risk{color:var(--fine)}
 
 .add{width:100%;margin-top:14px;padding:14px;border:0;border-radius:12px;background:var(--ink);color:var(--bg);font-weight:600;font-size:1.05rem}
+.btns{gap:10px;margin-top:14px}
+.btns .add{margin-top:0;font-size:1rem;padding:14px 8px;white-space:nowrap}
+.add.alt{background:var(--surface);color:var(--ink);border:1px solid var(--line)}
+.timer{margin-top:14px;padding:12px 14px;border-radius:12px;background:var(--bg)}
+.timer .clock{font-size:1.6rem;font-weight:800;letter-spacing:-.02em}
+.timer .add{margin-top:10px}
+.link{border:0;background:none;color:var(--muted);text-decoration:underline;width:100%;padding:10px;font-size:.92rem}
+.danger{color:var(--fine)}
 .banner{background:var(--surface);border:1px dashed var(--line);border-radius:12px;padding:12px 14px;margin-bottom:14px;font-size:.92rem}
 
 .list{list-style:none;margin:0;padding:0}
@@ -168,7 +176,7 @@ const CATS=[
   {id:"otro",label:"Otro",color:"#7A8796"}
 ];
 const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
-const LS_KEY="tiempoutil.me";
+const LS_KEY="tiempoutil.me", TIMER_KEY="tiempoutil.timer";
 
 let db=null, me=null, authUser=undefined, denied=false, unsubs=[], tab="hoy", statTab="semana";
 let days={}, mins=[], setts=[], config=null, ready={days:false,mins:false,setts:false,config:false};
@@ -192,6 +200,9 @@ const downloads={save:async({filename,data})=>{
 const esc=s=>String(s??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
 const fmtDate=new Intl.DateTimeFormat("en-CA",{timeZone:"Europe/Madrid",year:"numeric",month:"2-digit",day:"2-digit"});
 const todayStr=()=>fmtDate.format(new Date());
+const fmtHM=new Intl.DateTimeFormat("en-GB",{timeZone:"Europe/Madrid",hour:"2-digit",minute:"2-digit",hourCycle:"h23"});
+const hm=ms=>fmtHM.format(new Date(ms));
+const clock=ms=>{const s=Math.max(0,Math.floor(ms/1000));return `${Math.floor(s/3600)}:${String(Math.floor(s/60)%60).padStart(2,"0")}:${String(s%60).padStart(2,"0")}`};
 const toD=s=>new Date(s+"T12:00:00Z");
 const addDays=(s,n)=>{const d=toD(s);d.setUTCDate(d.getUTCDate()+n);return d.toISOString().slice(0,10)};
 const dow=s=>toD(s).getUTCDay(); // 0 dom
@@ -273,8 +284,8 @@ function render(){
     <div class="picker">${PEOPLE.map(p=>`<button data-pick="${p}"><span class="dot" style="background:${PCOLOR[p]};width:14px;height:14px"></span>${p}</button>`).join("")}</div>`;return}
   if(!ready.days||!ready.mins||!ready.config){app.innerHTML=`<p class="muted">Cargando…</p>`;return}
   nav.hidden=false;
-  nav.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===(tab==="exportar"?"ajustes":tab)?"page":"false"));
-  app.innerHTML=({hoy:renderHoy,multas:renderMultas,stats:renderStats,ajustes:renderAjustes,exportar:renderExportar})[tab]();
+  nav.querySelectorAll("button").forEach(b=>b.setAttribute("aria-current",b.dataset.tab===(({exportar:"ajustes",historial:"ajustes"})[tab]||tab)?"page":"false"));
+  app.innerHTML=({hoy:renderHoy,multas:renderMultas,stats:renderStats,ajustes:renderAjustes,exportar:renderExportar,historial:renderHistorial})[tab]();
 }
 
 function progressBar(p,d,thin){
@@ -303,15 +314,12 @@ function renderHoy(){
     <div class="big">${fmt(done)}<small>de ${min!=null?fmt(min):"—"}</small></div>
     ${progressBar(me,t)}
     <div class="spread small">${status}<span class="muted">Racha ${ev.streak}</span></div>
-    <button class="add" data-act="open-add">Añadir actividad</button>
+    ${timerBlock()}
   </div>
   <h2>Hoy has hecho</h2>
-  ${entries.length?`<ul class="list card" style="padding:4px 16px">${entries.map(e=>`
-    <li><span class="dot" style="background:${CAT[e.category]?.color||"#888"}"></span>
-      <div class="grow"><div><b>${fmt(e.minutes)}</b> · ${esc(CAT[e.category]?.label||e.category)}${e.start?` <span class="muted small">${esc(e.start)}–${esc(e.end)}</span>`:""}</div>
-      ${e.note?`<div class="note">${esc(e.note)}</div>`:""}</div>
-      <button class="del" data-del="${esc(e.id)}" aria-label="Borrar">×</button></li>`).join("")}</ul>`
-    :`<p class="muted">Nada todavía. Toca “Añadir actividad” cuando termines un bloque.</p>`}
+  ${entries.length?`<ul class="list card" style="padding:4px 16px">${entries.map(e=>entryRow(`${me}_${t}`,e)).join("")}</ul>`
+    :`<p class="muted">Nada todavía. Toca “Empiezo ahora” al ponerte o “Añadir actividad” cuando termines un bloque.</p>`}
+  <button class="link" data-tab="historial">Ver historial completo</button>
   <h2>Los demás</h2>
   <div class="card" style="padding:4px 16px">${PEOPLE.filter(p=>p!==me).map(p=>{
     const e=evaluate(p),d=minutesOn(p,t),m=minimumOn(p,t);
@@ -321,6 +329,40 @@ function renderHoy(){
       <div class="muted small" style="margin-top:6px">Racha ${e.streak}${e.failRun?` · ${e.failRun} ${e.failRun===1?"fallo":"fallos"} seguidos`:""}</div></div>`}).join("")}
   </div>`;
 }
+
+const entryRow=(dayId,e)=>`
+    <li><span class="dot" style="background:${CAT[e.category]?.color||"#888"}"></span>
+      <div class="grow"><div><b>${fmt(e.minutes)}</b> · ${esc(CAT[e.category]?.label||e.category)}${e.start?` <span class="muted small">${esc(e.start)}–${esc(e.end)}</span>`:""}${e.editedAt?` <span class="muted small">· editada</span>`:""}</div>
+      ${e.note?`<div class="note">${esc(e.note)}</div>`:""}</div>
+      <button class="del" data-edit="${esc(e.id)}" data-day="${esc(dayId)}" aria-label="Editar">✎</button>
+      <button class="del" data-del="${esc(e.id)}" data-day="${esc(dayId)}" aria-label="Borrar">×</button></li>`;
+
+/* ---------- timer ---------- */
+function myTimer(){try{const x=JSON.parse(localStorage.getItem(TIMER_KEY)||"null");return x&&x.person===me&&typeof x.start==="number"?x:null}catch(_){return null}}
+function setTimer(v){try{v?localStorage.setItem(TIMER_KEY,JSON.stringify(v)):localStorage.removeItem(TIMER_KEY)}catch(_){}}
+function timerBlock(){
+  const tm=myTimer();
+  if(!tm)return `<div class="two btns"><button class="add" data-act="timer-start">Empiezo ahora</button><button class="add alt" data-act="open-add">Añadir actividad</button></div>`;
+  const sd=fmtDate.format(new Date(tm.start)), cut=sd!==todayStr();
+  return `<div class="timer"><div class="spread"><span class="small muted">En marcha desde las ${hm(tm.start)}${cut?` del ${shortDate(sd)}`:""}</span><span class="clock" id="tclock">${clock(Date.now()-tm.start)}</span></div>
+    ${cut?`<p class="muted small" style="margin:6px 0 0">Empezó antes de medianoche: solo cuenta desde las 00:00.</p>`:""}
+    <button class="add" data-act="timer-stop">Termino</button>
+    <button class="link" data-act="timer-discard">Descartar</button></div>`;
+}
+function startTimer(){
+  setTimer({person:me,start:Date.now()});
+  if(!myTimer()){toast("Este navegador no deja guardar el cronómetro.");return}
+  render();
+}
+function stopTimer(){
+  const tm=myTimer(); if(!tm)return;
+  const t=todayStr(), cut=fmtDate.format(new Date(tm.start))!==t;
+  const start=cut?"00:00":hm(tm.start), end=hm(Date.now());
+  if(start===end){setTimer(null);render();toast("Ha durado menos de un minuto: no se guarda nada.");return}
+  openAdd({start,end,cut});
+}
+setInterval(()=>{const el=document.getElementById("tclock"),tm=myTimer();if(el&&tm)el.textContent=clock(Date.now()-tm.start)},1000);
+window.addEventListener("storage",e=>{if(e.key===TIMER_KEY)render()});
 
 function renderMultas(){
   const L=ledger();
@@ -407,12 +449,25 @@ function renderAjustes(){
     return `<tr><td>${p}</td><td class="num">${l?fmt(l.weekday):"—"}</td><td class="num">${l?fmt(l.weekend):"—"}</td></tr>`}).join("")}</table></div>
   <h2>Mi historial de cambios</h2>
   ${hist.length?`<ul class="list card" style="padding:4px 16px">${hist.map(h=>`<li><div class="grow">L–V ${fmt(h.weekday)} · S–D ${fmt(h.weekend)}<div class="note">Desde ${longDate(h.effectiveFrom)}</div></div></li>`).join("")}</ul>`:`<p class="muted">Sin cambios.</p>`}
+  <h2>Mis actividades</h2>
+  <div class="card"><div class="spread"><span>Corregir o borrar lo registrado</span><button class="btn-sec" data-tab="historial">Ver historial</button></div></div>
   <h2>Datos</h2>
   <div class="card"><div class="spread"><span>Descargar una copia de todo</span><button class="btn-sec" data-tab="exportar">Exportar e importar</button></div></div>
   <h2>Dispositivo</h2>
   <div class="card"><div class="spread"><span>Estás registrando como <b>${me}</b></span><button class="btn-sec" data-act="switch">Cambiar</button></div></div>
   <h2>Cuenta</h2>
   <div class="card"><div class="spread"><span class="small" style="overflow-wrap:anywhere">${esc(authUser?.email||"")}</span><button class="btn-sec" data-act="logout">Cerrar sesión</button></div></div>`;
+}
+
+/* ---------- historial ---------- */
+function renderHistorial(){
+  const mine=Object.entries(days).filter(([,x])=>x.person===me&&(x.entries||[]).length).sort((a,b)=>a[1].date<b[1].date?1:-1);
+  return `<div class="row"><button class="btn-sec" data-tab="ajustes" aria-label="Volver a Ajustes">‹ Ajustes</button></div>
+  <h1 style="margin-top:14px">Mis actividades</h1>
+  <p class="muted small">Puedes corregir o borrar cualquier actividad tuya, pero solo a la baja. Para sumar tiempo, añade una actividad nueva hoy.</p>
+  ${mine.length?mine.map(([id,x])=>`<h2 class="spread"><span>${cap(longDate(x.date))}</span><span class="muted small">${fmt(minutesOn(me,x.date))}</span></h2>
+    <ul class="list card" style="padding:4px 16px">${x.entries.slice().sort((a,b)=>(a.createdAt||0)-(b.createdAt||0)).map(e=>entryRow(id,e)).join("")}</ul>`).join("")
+    :`<p class="muted">Todavía no has registrado nada.</p>`}`;
 }
 
 /* ---------- export ---------- */
@@ -505,17 +560,19 @@ async function doExport(kind){
 }
 
 /* ---------- add sheet ---------- */
-let form={cat:"estudio",mode:"horario"};
-function openAdd(){
-  if(todayStr()<(config?.startDate||"")) {}
-  const s=document.getElementById("sheet");
+let form={cat:"estudio",mode:"horario",pre:null,edit:null};
+function openAdd(pre){
+  form.pre=pre||null; form.edit=null; if(pre)form.mode="horario";
+  const s=document.getElementById("sheet"); s.setAttribute("aria-label","Añadir actividad");
   s.innerHTML=`<div class="spread"><h1>Añadir actividad</h1><button class="del" data-act="close" aria-label="Cerrar">×</button></div>
+  ${pre?.cut?`<div class="banner" style="margin:10px 0 0">El día anterior se cerró a medianoche: el tramo de antes de las 00:00 no cuenta.</div>`:""}
   <div class="chips">${CATS.map(c=>`<button class="chip" data-cat="${c.id}" aria-pressed="${form.cat===c.id}">${c.label}</button>`).join("")}</div>
   <div class="seg"><button data-mode="horario" aria-pressed="${form.mode==="horario"}">De … a …</button><button data-mode="minutos" aria-pressed="${form.mode==="minutos"}">Minutos</button></div>
   <div id="modeFields">${modeFields()}</div>
   <div class="field"><label for="fnote">Nota ${form.cat==="otro"?"(obligatoria)":"(opcional)"}</label><input id="fnote" maxlength="140" placeholder="Ej.: tema 3 de Finanzas"></div>
   <div class="err" id="ferr"></div>
   <button class="add" data-act="save-entry">Guardar</button>`;
+  if(pre){document.getElementById("fs").value=pre.start;document.getElementById("fe").value=pre.end}
   document.getElementById("scrim").classList.add("open"); s.classList.add("open");
 }
 function modeFields(){return form.mode==="horario"
@@ -540,20 +597,76 @@ function saveEntry(){
   const t=todayStr(), id=`${me}_${t}`;
   const entry={id:Date.now().toString(36)+Math.random().toString(36).slice(2,6),category:form.cat,minutes,start,end,note,createdAt:Date.now()};
   closeAdd();
+  if(form.pre){setTimer(null);form.pre=null;render()}
   enqueue(async()=>{
     const cur=days[id]; const entries=[...(cur?.entries||[]),entry];
     await db.collection("days").doc(id).set({person:me,date:t,entries,total:entries.reduce((x,e)=>x+e.minutes,0)});
     toast(`Guardado: ${fmt(minutes)} de ${CAT[form.cat].label.toLowerCase()}`);
   });
 }
-function deleteEntry(eid){
-  if(!confirm("¿Borrar esta actividad?"))return;
-  const t=todayStr(), id=`${me}_${t}`;
+function writeDay(dayId,fn,msg){
   enqueue(async()=>{
-    const cur=days[id]; if(!cur)return;
-    const entries=(cur.entries||[]).filter(e=>e.id!==eid);
-    await db.collection("days").doc(id).set({person:me,date:t,entries,total:entries.reduce((x,e)=>x+e.minutes,0)});
+    const cur=days[dayId]; if(!cur)return;
+    const entries=fn(cur.entries||[]);
+    await db.collection("days").doc(dayId).set({...cur,entries,total:entries.reduce((x,e)=>x+(e.minutes||0),0)});
+    if(msg)toast(msg);
   });
+}
+function findEntry(dayId,eid){const day=days[dayId], e=day&&day.person===me?(day.entries||[]).find(x=>x.id===eid):null;return e?{day,e}:null}
+// Aviso si el cambio hace que un día ya cerrado deje de cumplir el mínimo.
+function failWarning(d,newTotal,q){
+  const start=config?.startDate, min=minimumOn(me,d);
+  if(!start||d<start||d>=todayStr()||min==null||minutesOn(me,d)<min||newTotal>=min)return "";
+  return `Con este cambio, el ${longDate(d)} deja de llegar al mínimo (${fmt(min)}): se te aplica la multa de ese día y se rompe tu racha. ${q}`;
+}
+function deleteEntry(dayId,eid){
+  const f=findEntry(dayId,eid); if(!f)return false;
+  if(!confirm(failWarning(f.day.date,minutesOn(me,f.day.date)-f.e.minutes,"¿Borrarla?")||"¿Borrar esta actividad?"))return false;
+  writeDay(dayId,en=>en.filter(x=>x.id!==eid),"Actividad borrada");
+  return true;
+}
+function openEdit(dayId,eid){
+  const f=findEntry(dayId,eid); if(!f)return;
+  const {day,e}=f, iv=!!(e.start&&e.end);
+  form.cat=e.category; form.edit={dayId,eid}; form.pre=null;
+  const s=document.getElementById("sheet"); s.setAttribute("aria-label","Editar actividad");
+  s.innerHTML=`<div class="spread"><h1>Editar actividad</h1><button class="del" data-act="close" aria-label="Cerrar">×</button></div>
+  <p class="muted small" style="margin:2px 0 0">${cap(longDate(day.date))}</p>
+  <div class="chips">${CATS.map(c=>`<button class="chip" data-cat="${c.id}" aria-pressed="${form.cat===c.id}">${c.label}</button>`).join("")}</div>
+  ${iv?`<div class="two"><div class="field"><label for="fs">Desde</label><input id="fs" type="time" value="${esc(e.start)}"></div><div class="field"><label for="fe">Hasta</label><input id="fe" type="time" value="${esc(e.end)}"></div></div>
+    <p class="muted small" style="margin:-4px 0 12px">Solo se puede acortar: tiene que quedar entre las ${esc(e.start)} y las ${esc(e.end)}.</p>`
+  :`<div class="field"><label for="fm">Minutos</label><input id="fm" type="number" inputmode="numeric" min="1" max="${e.minutes}" value="${e.minutes}"></div>
+    <p class="muted small" style="margin:-4px 0 12px">Solo se puede bajar: como mucho ${fmt(e.minutes)}.</p>`}
+  <div class="field"><label for="fnote">Nota ${form.cat==="otro"?"(obligatoria)":"(opcional)"}</label><input id="fnote" maxlength="140" value="${esc(e.note||"")}"></div>
+  <div class="err" id="ferr"></div>
+  <button class="add" data-act="save-edit">Guardar cambios</button>
+  <button class="link danger" data-act="delete-edit">Borrar actividad</button>`;
+  document.getElementById("scrim").classList.add("open"); s.classList.add("open");
+}
+function saveEdit(){
+  const err=document.getElementById("ferr"); err.textContent="";
+  const {dayId,eid}=form.edit||{}, f=findEntry(dayId,eid); if(!f){closeAdd();return}
+  const {day,e}=f;
+  let minutes, start=e.start||null, end=e.end||null;
+  if(e.start&&e.end){
+    start=document.getElementById("fs").value; end=document.getElementById("fe").value;
+    if(!start||!end){err.textContent="Pon la hora de inicio y la de fin.";return}
+    if(start<e.start||end>e.end){err.textContent=`Solo puedes acortarla: tiene que quedar entre las ${e.start} y las ${e.end}.`;return}
+    const [a,b]=[start,end].map(x=>{const [h,m]=x.split(":").map(Number);return h*60+m});
+    if(b<=a){err.textContent="La hora de fin tiene que ser posterior a la de inicio. Si quieres quitarla entera, bórrala.";return}
+    minutes=Math.min(b-a,e.minutes);
+  } else {
+    minutes=parseInt(document.getElementById("fm").value,10);
+    if(!minutes||minutes<1){err.textContent="Pon al menos 1 minuto. Si quieres quitarla entera, bórrala.";return}
+    if(minutes>e.minutes){err.textContent=`Solo puedes bajarla: como mucho ${fmt(e.minutes)}.`;return}
+  }
+  const note=document.getElementById("fnote").value.trim();
+  if(form.cat==="otro"&&!note){err.textContent="En “Otro” explica brevemente qué has hecho.";return}
+  if(minutes===e.minutes&&start===(e.start||null)&&end===(e.end||null)&&note===(e.note||"")&&form.cat===e.category){closeAdd();return}
+  const w=failWarning(day.date,minutesOn(me,day.date)-e.minutes+minutes,"¿Guardar igualmente?");
+  if(w&&!confirm(w))return;
+  const cat=form.cat; closeAdd();
+  writeDay(dayId,en=>en.map(x=>x.id===eid?{...x,category:cat,minutes,start,end,note,editedAt:Date.now()}:x),"Cambios guardados");
 }
 
 /* ---------- events ---------- */
@@ -563,7 +676,8 @@ document.addEventListener("click",e=>{
   if(b.dataset.tab){tab=b.dataset.tab;render();window.scrollTo(0,0);return}
   if(b.dataset.exp){doExport(b.dataset.exp);return}
   if(b.dataset.stat){statTab=b.dataset.stat;render();return}
-  if(b.dataset.del){deleteEntry(b.dataset.del);return}
+  if(b.dataset.edit){openEdit(b.dataset.day,b.dataset.edit);return}
+  if(b.dataset.del){deleteEntry(b.dataset.day,b.dataset.del);return}
   if(b.dataset.cat){form.cat=b.dataset.cat;document.querySelectorAll(".chip").forEach(c=>c.setAttribute("aria-pressed",c.dataset.cat===form.cat));
     document.querySelector('label[for="fnote"]').textContent="Nota "+(form.cat==="otro"?"(obligatoria)":"(opcional)");return}
   if(b.dataset.mode){form.mode=b.dataset.mode;document.querySelectorAll(".seg button").forEach(c=>c.setAttribute("aria-pressed",c.dataset.mode===form.mode));document.getElementById("modeFields").innerHTML=modeFields();return}
@@ -577,6 +691,11 @@ document.addEventListener("click",e=>{
   else if(act==="logout"){signOut(auth)}
   else if(act==="import")doImport();
   else if(act==="save-entry")saveEntry();
+  else if(act==="save-edit")saveEdit();
+  else if(act==="delete-edit"){if(form.edit&&deleteEntry(form.edit.dayId,form.edit.eid))closeAdd()}
+  else if(act==="timer-start")startTimer();
+  else if(act==="timer-stop")stopTimer();
+  else if(act==="timer-discard"){if(confirm("¿Descartar el cronómetro? No se guardará nada.")){setTimer(null);render()}}
   else if(act==="switch"){if(confirm("¿Cambiar de persona en este dispositivo?")){me=null;try{localStorage.removeItem(LS_KEY)}catch(_){}render()}}
   else if(act==="save-min"){
     const weekday=Number(document.getElementById("mwd").value), weekend=Number(document.getElementById("mwe").value);
