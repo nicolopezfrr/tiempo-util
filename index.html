@@ -4,6 +4,13 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Tiempo útil</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-180.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Tiempo útil">
+<meta name="theme-color" content="#EEF1F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0F141A" media="(prefers-color-scheme: dark)">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,400;12..96,500;12..96,600;12..96,800&display=swap" rel="stylesheet">
@@ -153,7 +160,8 @@ tr:last-child td{border-bottom:0}
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, GoogleAuthProvider, signInWithPopup, signOut, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, collection, doc, setDoc, addDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, collection, doc, setDoc, addDoc, deleteDoc, onSnapshot, writeBatch } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getMessaging, getToken, deleteToken, onMessage, isSupported } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-messaging.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyCH2eK5xwpN6f1LGr8a7ork2TIHYQqdjnc",
@@ -176,7 +184,9 @@ const CATS=[
   {id:"otro",label:"Otro",color:"#7A8796"}
 ];
 const CAT=Object.fromEntries(CATS.map(c=>[c.id,c]));
-const LS_KEY="tiempoutil.me", TIMER_KEY="tiempoutil.timer";
+const LS_KEY="tiempoutil.me", TIMER_KEY="tiempoutil.timer", PUSH_KEY="tiempoutil.push";
+// Clave pública de Firebase → Configuración del proyecto → Cloud Messaging → Certificados push web.
+const VAPID_KEY="";
 
 let db=null, me=null, authUser=undefined, denied=false, unsubs=[], tab="hoy", statTab="semana";
 let days={}, mins=[], setts=[], config=null, ready={days:false,mins:false,setts:false,config:false};
@@ -184,7 +194,7 @@ let days={}, mins=[], setts=[], config=null, ready={days:false,mins:false,setts:
 /* ---------- adapters ---------- */
 const store={
   collection:name=>({
-    doc:id=>({set:data=>setDoc(doc(fs,name,id),data)}),
+    doc:id=>({set:data=>setDoc(doc(fs,name,id),data),delete:()=>deleteDoc(doc(fs,name,id))}),
     add:data=>addDoc(collection(fs,name),data),
     onSnapshot:(next,err)=>onSnapshot(collection(fs,name),s=>next({docs:s.docs.map(d=>({id:d.id,data:()=>d.data()}))}),err)
   }),
@@ -457,6 +467,8 @@ function renderAjustes(){
   ${hist.length?`<ul class="list card" style="padding:4px 16px">${hist.map(h=>`<li><div class="grow">L–V ${fmt(h.weekday)} · S–D ${fmt(h.weekend)}<div class="note">Desde ${longDate(h.effectiveFrom)}</div></div></li>`).join("")}</ul>`:`<p class="muted">Sin cambios.</p>`}
   <h2>Mis actividades</h2>
   <div class="card"><div class="spread"><span>Corregir o borrar lo registrado</span><button class="btn-sec" data-tab="historial">Ver historial</button></div></div>
+  <h2>Notificaciones</h2>
+  <div class="card"><p class="small" style="margin-top:0">Cada mañana a las 6:00 (hora de España), una frase para empezar el día.</p>${pushHtml()}</div>
   <h2>Datos</h2>
   <div class="card"><div class="spread"><span>Descargar una copia de todo</span><button class="btn-sec" data-tab="exportar">Exportar e importar</button></div></div>
   <h2>Dispositivo</h2>
@@ -464,6 +476,61 @@ function renderAjustes(){
   <h2>Cuenta</h2>
   <div class="card"><div class="spread"><span class="small" style="overflow-wrap:anywhere">${esc(authUser?.email||"")}</span><button class="btn-sec" data-act="logout">Cerrar sesión</button></div></div>`;
 }
+
+/* ---------- notificaciones ---------- */
+let pushState="checking";
+const lsGet=k=>{try{return localStorage.getItem(k)}catch(_){return null}};
+const isIOS=/iP(hone|ad|od)/.test(navigator.userAgent)||(navigator.platform==="MacIntel"&&navigator.maxTouchPoints>1);
+const standalone=matchMedia("(display-mode: standalone)").matches||navigator.standalone===true;
+function pushHtml(){
+  const btn=(label,act)=>`<div class="spread"><span>${label}</span><button class="btn-sec" data-act="${act}">${act==="push-on"?"Activar":"Desactivar"}</button></div>`;
+  return ({
+    checking:`<p class="muted small" style="margin:0">Comprobando…</p>`,
+    nokey:`<p class="muted small" style="margin:0">Todavía no están configuradas.</p>`,
+    ios:`<p class="small" style="margin:0">En iPhone solo funcionan con la app en la pantalla de inicio: en Safari, toca Compartir → “Añadir a pantalla de inicio”, abre la app desde el icono y vuelve aquí.</p>`,
+    unsupported:`<p class="muted small" style="margin:0">Este navegador no admite notificaciones.</p>`,
+    denied:`<p class="small" style="margin:0">Las has bloqueado. Para recibirlas, permítelas para esta web en los ajustes del navegador o del móvil.</p>`,
+    off:btn("Desactivadas en este dispositivo","push-on"),
+    on:btn("Activadas en este dispositivo","push-off")
+  })[pushState];
+}
+async function pushReg(){return navigator.serviceWorker.register("./firebase-messaging-sw.js",{scope:"./"})}
+let pushListening=false;
+async function checkPush(){
+  let st;
+  if(!VAPID_KEY)st="nokey";
+  else if(isIOS&&!standalone)st="ios";
+  else if(!("serviceWorker" in navigator)||!("Notification" in window)||!(await isSupported().catch(()=>false)))st="unsupported";
+  else if(Notification.permission==="denied")st="denied";
+  else st=Notification.permission==="granted"&&lsGet(PUSH_KEY)?"on":"off";
+  if(st!==pushState){pushState=st;if(tab==="ajustes")render()}
+  if(st==="on"&&!pushListening){pushListening=true;onMessage(getMessaging(fbApp),m=>toast([m.notification?.title,m.notification?.body].filter(Boolean).join(" ")))}
+}
+// Guarda (o renueva) el token de este dispositivo a nombre de quien lo usa.
+async function saveToken(){
+  const token=await getToken(getMessaging(fbApp),{vapidKey:VAPID_KEY,serviceWorkerRegistration:await pushReg()});
+  const old=lsGet(PUSH_KEY);
+  if(old&&old!==token)await db.collection("tokens").doc(old).delete().catch(()=>{});
+  await db.collection("tokens").doc(token).set({person:me,token,createdAt:Date.now(),device:navigator.userAgent.slice(0,200)});
+  try{localStorage.setItem(PUSH_KEY,token)}catch(_){}
+}
+async function enablePush(){
+  try{
+    const perm=await Notification.requestPermission();
+    if(perm!=="granted"){toast(perm==="denied"?"Has bloqueado las notificaciones.":"No se han activado.");await checkPush();return}
+    await saveToken(); toast("Notificaciones activadas");
+  }catch(e){console.error(e);toast("No se pudieron activar las notificaciones.")}
+  await checkPush();
+}
+async function disablePush(){
+  const token=lsGet(PUSH_KEY);
+  try{if(token)await db.collection("tokens").doc(token).delete();await deleteToken(getMessaging(fbApp)).catch(()=>{})}
+  catch(e){console.error(e);toast("No se pudieron desactivar. Revisa la conexión.");return}
+  try{localStorage.removeItem(PUSH_KEY)}catch(_){}
+  toast("Notificaciones desactivadas en este dispositivo"); await checkPush();
+}
+// Al abrir la app: si estaban activadas, renueva el token (Firebase lo cambia de vez en cuando).
+async function syncPush(){await checkPush();if(pushState==="on"&&me)saveToken().catch(e=>console.error(e))}
 
 /* ---------- historial ---------- */
 function renderHistorial(){
@@ -683,7 +750,7 @@ function saveEdit(){
 /* ---------- events ---------- */
 document.addEventListener("click",e=>{
   const b=e.target.closest("button"); if(!b){ if(e.target.id==="scrim")closeAdd(); return }
-  if(b.dataset.pick){me=b.dataset.pick;try{localStorage.setItem(LS_KEY,me)}catch(_){}render();return}
+  if(b.dataset.pick){me=b.dataset.pick;try{localStorage.setItem(LS_KEY,me)}catch(_){}render();if(db)syncPush();return}
   if(b.dataset.tab){tab=b.dataset.tab;render();window.scrollTo(0,0);return}
   if(b.dataset.exp){doExport(b.dataset.exp);return}
   if(b.dataset.stat){statTab=b.dataset.stat;render();return}
@@ -706,6 +773,8 @@ document.addEventListener("click",e=>{
   else if(act==="save-edit")saveEdit();
   else if(act==="delete-edit"){if(form.edit&&deleteEntry(form.edit.dayId,form.edit.eid))closeAdd()}
   else if(act==="timer-start"){timerPick=true;render()}
+  else if(act==="push-on")enablePush();
+  else if(act==="push-off")disablePush();
   else if(act==="timer-pick-cancel"){timerPick=false;render()}
   else if(act==="timer-stop")stopTimer();
   else if(act==="timer-discard"){if(confirm("¿Descartar el cronómetro? No se guardará nada.")){setTimer(null);render()}}
@@ -732,6 +801,7 @@ onAuthStateChanged(auth,user=>{
   unsubs.push(db.collection("days").onSnapshot(s=>{const o={};s.docs.forEach(d=>o[d.id]=d.data());days=o;ready.days=true;render()},onErr));
   unsubs.push(db.collection("minimums").onSnapshot(s=>{mins=s.docs.map(d=>d.data());ready.mins=true;render()},onErr));
   unsubs.push(db.collection("settlements").onSnapshot(s=>{setts=s.docs.map(d=>d.data());ready.setts=true;render()},onErr));
+  syncPush();
   unsubs.push(db.doc("config/main").onSnapshot(s=>{config=s.exists?s.data():null;ready.config=true;render()},onErr));
   render();
 });

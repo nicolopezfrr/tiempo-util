@@ -6,7 +6,15 @@ Principio que manda sobre todo lo demás: **simple y sin fricción**. Registrar 
 
 ## Cómo está montado
 
-- Un solo archivo: `index.html` (HTML + CSS + JS en módulo). Sin build, sin npm, sin frameworks.
+- La app es un solo archivo: `index.html` (HTML + CSS + JS en módulo). Sin build, sin npm, sin frameworks.
+- Archivos de apoyo, que existen porque una función los exige:
+  - `manifest.json` + `icon-180.png`, `icon-192.png`, `icon-512.png`: app instalable (PWA). Nombre e icono provisionales.
+  - `firebase-messaging-sw.js`: service worker de las notificaciones (muestra los avisos con la app cerrada).
+  - `.github/workflows/buenos-dias.yml` + `.github/scripts/buenos-dias.mjs`: tarea programada de GitHub Actions que envía el mensaje de las 6:00 con Firebase Cloud Messaging. Aquí sí se usa npm (`firebase-admin`), pero solo dentro de la tarea, no en la app.
+- Notificaciones (Firebase Cloud Messaging, gratis en Spark):
+  - `VAPID_KEY` en `index.html`: clave pública de Firebase → Configuración del proyecto → Cloud Messaging → Certificados push web. No es secreta. Mientras esté vacía, Ajustes muestra "Todavía no están configuradas".
+  - Secreto de GitHub `FIREBASE_SERVICE_ACCOUNT`: el JSON de una cuenta de servicio de Firebase, para que la tarea programada lea Firestore y envíe. Este sí es secreto: nunca en el repo.
+  - La tarea se lanza a las 04:03 y 05:03 UTC y solo envía la primera vez que en España son entre las 6:00 y las 8:59 (cubre horario de verano e invierno). Apunta el día enviado en `config/push`. Se puede lanzar a mano desde Actions → "Buenos días" → Run workflow (modo prueba: envía ya).
 - Hosting: GitHub Pages desde la rama `main`, carpeta raíz. URL: https://nicolopezfrr.github.io/tiempo-util/
 - Datos y login: Firebase (proyecto `tiempo-util`), plan gratuito Spark.
   - Firestore como base de datos.
@@ -38,10 +46,12 @@ Principio que manda sobre todo lo demás: **simple y sin fricción**. Registrar 
 - `days/{persona}_{fecha}` → `{ person, date, entries: [{ id, category, minutes, start, end, note, createdAt, editedAt? }], total }`. `editedAt` solo existe si la actividad se ha corregido.
 - `minimums/{id}` → `{ person, weekday, weekend, effectiveFrom, createdAt }` (minutos). Histórico: nunca se sobrescribe, se añade uno nuevo.
 - `settlements/{id}` → `{ from, to, amount, date, createdAt, by }`. Pagos reales marcados con "Marcar pagado".
+- `tokens/{token}` → `{ person, token, createdAt, device }`. Un documento por dispositivo con notificaciones activadas. Lo crea y renueva la app; la tarea programada borra los que caducan. Las reglas de Firestore deben permitir esta colección a los tres.
+- `config/push` → `{ lastMorning: "YYYY-MM-DD" }`. Lo escribe solo la tarea programada para no enviar dos veces el mismo día.
 
 Las multas no se guardan: se derivan siempre de `days` + `minimums`. Los saldos son multas menos pagos.
 
-En el dispositivo, `localStorage["tiempoutil.me"]` guarda qué hermano es (se elige una vez) y `localStorage["tiempoutil.timer"]` guarda el cronómetro en marcha como `{ person, start, cat }` (`start` en milisegundos, `cat` es la categoría elegida al empezar). No va a Firestore: solo se ve en el dispositivo donde se empezó, y sigue contando aunque se cierre la app porque el tiempo se calcula desde `start`.
+En el dispositivo, `localStorage["tiempoutil.me"]` guarda qué hermano es (se elige una vez) y `localStorage["tiempoutil.push"]` guarda el token de notificaciones del dispositivo, y `localStorage["tiempoutil.timer"]` guarda el cronómetro en marcha como `{ person, start, cat }` (`start` en milisegundos, `cat` es la categoría elegida al empezar). No va a Firestore: solo se ve en el dispositivo donde se empezó, y sigue contando aunque se cierre la app porque el tiempo se calcula desde `start`.
 
 ## Pantallas actuales
 
@@ -49,7 +59,7 @@ Barra inferior con cuatro pestañas:
 1. **Hoy:** progreso frente al mínimo, botones "Empiezo ahora" (cronómetro: se elige la categoría con un toque y arranca; al tocar "Termino" abre "Añadir actividad" con las horas y la categoría puestas) y "Añadir actividad", bloques de hoy (editar ✎ y borrar ×), enlace al historial, estado de los otros dos.
 2. **Multas:** saldo de cada uno, quién debe a quién con "Marcar pagado", totales históricos, movimientos.
 3. **Estadísticas:** semana (gráfica), ranking (semana/mes/total), rachas, categorías.
-4. **Ajustes:** mi mínimo, mínimos de todos, historial de cambios, mis actividades (subpantalla "Historial": todas mis actividades por día, con editar a la baja y borrar), exportar/importar (JSON y CSV), cambiar persona, cerrar sesión.
+4. **Ajustes:** mi mínimo, mínimos de todos, historial de cambios, mis actividades (subpantalla "Historial": todas mis actividades por día, con editar a la baja y borrar), notificaciones (activar o desactivar en este dispositivo; en iPhone explica que hay que añadirla a la pantalla de inicio), exportar/importar (JSON y CSV), cambiar persona, cerrar sesión.
 
 ## Cómo trabajar en este repo
 
@@ -63,29 +73,17 @@ Barra inferior con cuatro pestañas:
 
 Orden recomendado:
 
-1. **Nombre, icono y modo app (PWA).** `manifest.json` + iconos para que al añadirla a la pantalla de inicio se vea como una app a pantalla completa. Es requisito para las notificaciones en iPhone. Nombre por decidir (ideas: Racha, Sin Excusas, El Bote, Constancia, Tres).
+1. **Nombre e icono definitivos.** El modo app (PWA) ya está, con el nombre provisional "Tiempo útil" y un icono provisional (anillo con los tres colores). Nombre por decidir (ideas: Racha, Sin Excusas, El Bote, Constancia, Tres).
 2. **Menos fricción al registrar:**
    - Atajos "+30 min" y "+1 h" con la categoría habitual.
    - Cuenta atrás hasta el cierre del día en hora de España.
 3. **Avatares:** emoji y color elegidos por cada uno (el color se usa en gráficas y barras). Sin fotos subidas, porque Storage requiere plan de pago.
 4. **Calendario de constancia:** cuadrícula tipo GitHub, un cuadrado por día (verde cumplido, rojo fallado). Tocar un día muestra qué hizo cada uno, solo lectura.
-5. **Notificaciones push:**
-   - **Decidido, primero:** recordatorio a las 21:00 de España solo si aún no se ha llegado al mínimo ("Te faltan 40 min. Multa en juego: 1,50 €").
-   - **Decidido:** mensaje general a las 6:00 de España, igual para los tres, rotando un texto cada día. Frases elegidas (título · cuerpo):
-     - Nuevo día. · Hoy cuenta igual que ayer. No lo regales.
-     - Arriba. · Otro día en el contador. Que no sea el que rompe la racha.
-     - Buenos días. · 24 horas por delante. Con una o dos bien usadas basta.
-     - Empieza el día. · Los tres juntos, ninguno se queda atrás.
-     - Otro día, otra oportunidad. · Lo de ayer ya está. Lo de hoy depende de ti.
-     - Arranca. · Cuanto antes lo hagas, antes te lo quitas de encima.
-     - Un día más. · Recuerda lo que tienes y agradécelo. Luego, a por ello.
-     - Hoy es un regalo. · No todo el mundo lo tiene. Úsalo bien.
-     - Antes de empezar. · Piensa en una cosa por la que dar las gracias hoy. Después, a por ello.
-     - Otro día para aprovechar. · Agradece lo que tienes y demuéstralo con lo que haces.
-     - Pendiente: tres del estilo "ser productivo también es saber parar" (por elegir).
+5. **Notificaciones push** (el envío de las 6:00 ya está hecho; ver "Cómo está montado"):
+   - **Siguiente, decidido:** recordatorio a las 21:00 de España solo si aún no se ha llegado al mínimo ("Te faltan 40 min. Multa en juego: 1,50 €"). Reutiliza los tokens y la tarea programada; habrá que replicar en el script el cálculo de mínimos y multas de `index.html`.
+   - Hecho: mensaje general a las 6:00 de España, igual para los tres, una frase por día rotando. Las 12 frases están en `.github/scripts/buenos-dias.mjs` (para cambiarlas, editar ahí).
    - Más adelante, si se echan de menos: aviso cuando un hermano cumple, aviso de multa a la mañana siguiente.
-   - Las tareas programadas de GitHub pueden retrasarse unos minutos (las 21:00 puede ser 21:15) y se desactivan en repos públicos tras 60 días sin commits.
-   - Implementación gratuita prevista: Firebase Cloud Messaging + una tarea programada de GitHub Actions que revisa Firestore y envía los avisos (sin Cloud Functions). Requiere service worker y guardar los tokens de cada dispositivo.
+   - Las tareas programadas de GitHub pueden retrasarse unos minutos y se desactivan en repos públicos tras 60 días sin commits (reactivar en Actions).
    - iPhone: solo funciona con la app añadida a la pantalla de inicio (iOS 16.4+).
 6. **Motivación ligera:** logros discretos (rachas de 7, 30 y 100 días; 100 h totales) y resumen semanal automático cada lunes (horas, quién ganó la semana, dinero movido).
 7. **Más adelante, si se pide:** reacción rápida (👏) al día de un hermano.

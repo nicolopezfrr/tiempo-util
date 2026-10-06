@@ -1,0 +1,32 @@
+name: Buenos días
+
+on:
+  schedule:
+    - cron: "3 4 * * *" # 06:03 en España en horario de verano
+    - cron: "3 5 * * *" # 06:03 en España en horario de invierno
+  workflow_dispatch:
+    inputs:
+      prueba:
+        description: "Enviar ahora, aunque no sean las 6:00 ni sea la primera vez hoy"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+
+jobs:
+  enviar:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Instalar firebase-admin
+        working-directory: .github/scripts
+        run: npm install --no-save --no-package-lock firebase-admin@12
+      - name: Enviar
+        run: node .github/scripts/buenos-dias.mjs
+        env:
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+          PRUEBA: ${{ github.event_name == 'workflow_dispatch' && inputs.prueba }}
