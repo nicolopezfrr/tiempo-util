@@ -78,7 +78,11 @@ Orden recomendado:
      - Empieza el día. · Los tres juntos, ninguno se queda atrás.
      - Otro día, otra oportunidad. · Lo de ayer ya está. Lo de hoy depende de ti.
      - Arranca. · Cuanto antes lo hagas, antes te lo quitas de encima.
-     - Pendiente: añadir alguna de agradecimiento ("un día más, recuerda y agradece lo que tienes").
+     - Un día más. · Recuerda lo que tienes y agradécelo. Luego, a por ello.
+     - Hoy es un regalo. · No todo el mundo lo tiene. Úsalo bien.
+     - Antes de empezar. · Piensa en una cosa por la que dar las gracias hoy. Después, a por ello.
+     - Otro día para aprovechar. · Agradece lo que tienes y demuéstralo con lo que haces.
+     - Pendiente: tres del estilo "ser productivo también es saber parar" (por elegir).
    - Más adelante, si se echan de menos: aviso cuando un hermano cumple, aviso de multa a la mañana siguiente.
    - Las tareas programadas de GitHub pueden retrasarse unos minutos (las 21:00 puede ser 21:15) y se desactivan en repos públicos tras 60 días sin commits.
    - Implementación gratuita prevista: Firebase Cloud Messaging + una tarea programada de GitHub Actions que revisa Firestore y envía los avisos (sin Cloud Functions). Requiere service worker y guardar los tokens de cada dispositivo.
