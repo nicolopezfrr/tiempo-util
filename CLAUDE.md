@@ -20,7 +20,9 @@ Principio que manda sobre todo lo demás: **simple y sin fricción**. Registrar 
 ## Reglas del juego (no cambiar sin que lo pida el usuario)
 
 - **Día:** de 00:00 a 23:59 en hora de España (`Europe/Madrid`), para los tres. Nico vive en Monterrey pero se adapta a la hora española.
-- **Registro:** solo se puede añadir, editar o borrar actividad del día en curso. Por intervalo ("de 17:00 a 18:30") o por minutos.
+- **Registro:** solo se puede añadir actividad al día en curso. Por intervalo ("de 17:00 a 18:30"), por minutos o con el cronómetro.
+- **Corregir:** cada uno puede editar o borrar sus propias actividades de cualquier día desde el historial, pero solo a la baja (acortar el intervalo o bajar los minutos; categoría y nota sí se pueden cambiar). Si un día cerrado deja de llegar al mínimo, aparece su multa, se rompe la racha y pueden subir las multas de los días siguientes que también fallaron (cuentan como fallos seguidos). Antes de guardar se avisa con la multa nueva y cuánto suben las siguientes. Una corrección nunca puede quitar ni bajar una multa.
+- **Cronómetro y medianoche:** si el cronómetro sigue en marcha al cambiar de día, al terminar solo se registra el tramo desde las 00:00 del día en curso; lo anterior se pierde (el día ya está cerrado).
 - **Categorías:** Estudio, Deberes y trabajos, Lectura, Escritura, Deporte (el gimnasio NO cuenta, los tres van), Otro (nota obligatoria). Todas cuentan igual.
 - **Mínimo diario:** individual, con un valor de lunes a viernes y otro de sábado y domingo. Cada uno lo cambia cuando quiere, pero el cambio se aplica **desde el día siguiente** (para que nadie se lo baje a última hora). Los días pasados se evalúan con el mínimo vigente ese día.
   - Iniciales: Nico 1 h todos los días; Alex y Jacobo 1 h 30 entre semana y 1 h el fin de semana.
@@ -33,21 +35,21 @@ Principio que manda sobre todo lo demás: **simple y sin fricción**. Registrar 
 ## Modelo de datos (Firestore)
 
 - `config/main` → `{ startDate: "YYYY-MM-DD" }`
-- `days/{persona}_{fecha}` → `{ person, date, entries: [{ id, category, minutes, start, end, note, createdAt }], total }`
+- `days/{persona}_{fecha}` → `{ person, date, entries: [{ id, category, minutes, start, end, note, createdAt, editedAt? }], total }`. `editedAt` solo existe si la actividad se ha corregido.
 - `minimums/{id}` → `{ person, weekday, weekend, effectiveFrom, createdAt }` (minutos). Histórico: nunca se sobrescribe, se añade uno nuevo.
 - `settlements/{id}` → `{ from, to, amount, date, createdAt, by }`. Pagos reales marcados con "Marcar pagado".
 
 Las multas no se guardan: se derivan siempre de `days` + `minimums`. Los saldos son multas menos pagos.
 
-En el dispositivo, `localStorage["tiempoutil.me"]` guarda qué hermano es (se elige una vez).
+En el dispositivo, `localStorage["tiempoutil.me"]` guarda qué hermano es (se elige una vez) y `localStorage["tiempoutil.timer"]` guarda el cronómetro en marcha como `{ person, start }` (milisegundos). No va a Firestore: solo se ve en el dispositivo donde se empezó, y sigue contando aunque se cierre la app porque el tiempo se calcula desde `start`.
 
 ## Pantallas actuales
 
 Barra inferior con cuatro pestañas:
-1. **Hoy:** progreso frente al mínimo, botón "Añadir actividad", bloques de hoy, estado de los otros dos.
+1. **Hoy:** progreso frente al mínimo, botones "Empiezo ahora" (cronómetro; al tocar "Termino" abre "Añadir actividad" con las horas puestas) y "Añadir actividad", bloques de hoy (editar ✎ y borrar ×), enlace al historial, estado de los otros dos.
 2. **Multas:** saldo de cada uno, quién debe a quién con "Marcar pagado", totales históricos, movimientos.
 3. **Estadísticas:** semana (gráfica), ranking (semana/mes/total), rachas, categorías.
-4. **Ajustes:** mi mínimo, mínimos de todos, historial de cambios, exportar/importar (JSON y CSV), cambiar persona, cerrar sesión.
+4. **Ajustes:** mi mínimo, mínimos de todos, historial de cambios, mis actividades (subpantalla "Historial": todas mis actividades por día, con editar a la baja y borrar), exportar/importar (JSON y CSV), cambiar persona, cerrar sesión.
 
 ## Cómo trabajar en este repo
 
@@ -63,9 +65,7 @@ Orden recomendado:
 
 1. **Nombre, icono y modo app (PWA).** `manifest.json` + iconos para que al añadirla a la pantalla de inicio se vea como una app a pantalla completa. Es requisito para las notificaciones en iPhone. Nombre por decidir (ideas: Racha, Sin Excusas, El Bote, Constancia, Tres).
 2. **Menos fricción al registrar:**
-   - Cronómetro "Empiezo ahora" / "Termino" que sobreviva a cerrar la app (guardar la hora de inicio).
    - Atajos "+30 min" y "+1 h" con la categoría habitual.
-   - Editar un registro, no solo borrarlo.
    - Cuenta atrás hasta el cierre del día en hora de España.
 3. **Avatares:** emoji y color elegidos por cada uno (el color se usa en gráficas y barras). Sin fotos subidas, porque Storage requiere plan de pago.
 4. **Calendario de constancia:** cuadrícula tipo GitHub, un cuadrado por día (verde cumplido, rojo fallado). Tocar un día muestra qué hizo cada uno, solo lectura.
@@ -85,4 +85,4 @@ Mejora técnica pendiente: vincular cada email de Google a una persona para que 
 - Puntos, niveles o monedas virtuales.
 - Pedir pruebas (fotos, capturas).
 - Días justificados o comodines.
-- Registrar días pasados.
+- Añadir actividad a días pasados (corregir a la baja sí se puede).
