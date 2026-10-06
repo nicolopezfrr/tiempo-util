@@ -19,7 +19,7 @@ Principio que manda sobre todo lo demás: **simple y sin fricción**. Registrar 
 
 ## Reglas del juego (no cambiar sin que lo pida el usuario)
 
-- **Día:** de 00:00 a 23:59 en hora de España (`Europe/Madrid`), para los tres. Nico vive en Monterrey pero se adapta a la hora española.
+- **Día:** de 00:00 a 23:59 en hora de España (`Europe/Madrid`), para los tres. Nico vive en Monterrey pero se adapta a la hora española. **A partir del 22 de diciembre de 2026 Nico vuelve a España:** desde esa fecha hay que olvidarse de Monterrey y se puede borrar cualquier mención a ello (aquí y en la app).
 - **Registro:** solo se puede añadir actividad al día en curso. Por intervalo ("de 17:00 a 18:30"), por minutos o con el cronómetro.
 - **Corregir:** cada uno puede editar o borrar sus propias actividades de cualquier día desde el historial, pero solo a la baja (acortar el intervalo o bajar los minutos; categoría y nota sí se pueden cambiar). Si un día cerrado deja de llegar al mínimo, aparece su multa, se rompe la racha y pueden subir las multas de los días siguientes que también fallaron (cuentan como fallos seguidos). Antes de guardar se avisa con la multa nueva y cuánto suben las siguientes. Una corrección nunca puede quitar ni bajar una multa.
 - **Cronómetro y medianoche:** si el cronómetro sigue en marcha al cambiar de día, al terminar solo se registra el tramo desde las 00:00 del día en curso; lo anterior se pierde (el día ya está cerrado).
@@ -70,8 +70,17 @@ Orden recomendado:
 3. **Avatares:** emoji y color elegidos por cada uno (el color se usa en gráficas y barras). Sin fotos subidas, porque Storage requiere plan de pago.
 4. **Calendario de constancia:** cuadrícula tipo GitHub, un cuadrado por día (verde cumplido, rojo fallado). Tocar un día muestra qué hizo cada uno, solo lectura.
 5. **Notificaciones push:**
-   - Recordatorio a las 21:00 de España solo si aún no se ha llegado al mínimo ("Te faltan 40 min. Multa en juego: 1,50 €").
-   - Opcionales: aviso cuando un hermano cumple, aviso de multa a la mañana siguiente.
+   - **Decidido, primero:** recordatorio a las 21:00 de España solo si aún no se ha llegado al mínimo ("Te faltan 40 min. Multa en juego: 1,50 €").
+   - **Decidido:** mensaje general a las 6:00 de España, igual para los tres, rotando un texto cada día. Frases elegidas (título · cuerpo):
+     - Nuevo día. · Hoy cuenta igual que ayer. No lo regales.
+     - Arriba. · Otro día en el contador. Que no sea el que rompe la racha.
+     - Buenos días. · 24 horas por delante. Con una o dos bien usadas basta.
+     - Empieza el día. · Los tres juntos, ninguno se queda atrás.
+     - Otro día, otra oportunidad. · Lo de ayer ya está. Lo de hoy depende de ti.
+     - Arranca. · Cuanto antes lo hagas, antes te lo quitas de encima.
+     - Pendiente: añadir alguna de agradecimiento ("un día más, recuerda y agradece lo que tienes").
+   - Más adelante, si se echan de menos: aviso cuando un hermano cumple, aviso de multa a la mañana siguiente.
+   - Las tareas programadas de GitHub pueden retrasarse unos minutos (las 21:00 puede ser 21:15) y se desactivan en repos públicos tras 60 días sin commits.
    - Implementación gratuita prevista: Firebase Cloud Messaging + una tarea programada de GitHub Actions que revisa Firestore y envía los avisos (sin Cloud Functions). Requiere service worker y guardar los tokens de cada dispositivo.
    - iPhone: solo funciona con la app añadida a la pantalla de inicio (iOS 16.4+).
 6. **Motivación ligera:** logros discretos (rachas de 7, 30 y 100 días; 100 h totales) y resumen semanal automático cada lunes (horas, quién ganó la semana, dinero movido).
