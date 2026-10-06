@@ -228,14 +228,15 @@ function minimumOn(p,d){
   if(!best)return null;
   return isWeekend(d)?best.weekend:best.weekday;
 }
-function evaluate(p){
+// ov = {date, minutes}: simula ese día con otros minutos (para avisar antes de corregir).
+function evaluate(p,ov){
   const today=todayStr(), start=config&&config.startDate;
   const r={fines:[],streak:0,maxStreak:0,met:0,evald:0,failRun:0,nextFine:1,todayMet:false};
   if(!start)return r;
   let run=0,fail=0;
   for(let d=start; d<today; d=addDays(d,1)){
     const min=minimumOn(p,d); if(min==null)continue;
-    const done=minutesOn(p,d); r.evald++;
+    const done=ov&&ov.date===d?ov.minutes:minutesOn(p,d); r.evald++;
     if(done>=min){r.met++;run++;fail=0;r.maxStreak=Math.max(r.maxStreak,run)}
     else{run=0;fail++;r.fines.push({person:p,date:d,amount:fineFor(fail),k:fail,done,min})}
   }
@@ -617,7 +618,12 @@ function findEntry(dayId,eid){const day=days[dayId], e=day&&day.person===me?(day
 function failWarning(d,newTotal,q){
   const start=config?.startDate, min=minimumOn(me,d);
   if(!start||d<start||d>=todayStr()||min==null||minutesOn(me,d)<min||newTotal>=min)return "";
-  return `Con este cambio, el ${longDate(d)} deja de llegar al mínimo (${fmt(min)}): se te aplica la multa de ese día y se rompe tu racha. ${q}`;
+  const was=Object.fromEntries(evaluate(me).fines.map(f=>[f.date,f.amount])), now=evaluate(me,{date:d,minutes:newTotal}).fines;
+  const own=now.find(f=>f.date===d)?.amount||0, later=now.filter(f=>f.date>d&&f.amount>(was[f.date]||0));
+  const extra=later.reduce((a,f)=>a+f.amount-(was[f.date]||0),0);
+  let msg=`Con este cambio, el ${longDate(d)} deja de llegar al mínimo (${fmt(min)}): se te aplica una multa de ${eur(own)} y se rompe tu racha.`;
+  if(later.length)msg+=` Además suben las multas de ${later.length===1?"1 día siguiente":`${later.length} días siguientes`} (+${eur(extra)}). En total pagarías ${eur(own+extra)} más.`;
+  return `${msg} ${q}`;
 }
 function deleteEntry(dayId,eid){
   const f=findEntry(dayId,eid); if(!f)return false;

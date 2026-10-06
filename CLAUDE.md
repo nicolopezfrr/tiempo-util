@@ -21,7 +21,7 @@ Principio que manda sobre todo lo demás: **simple y sin fricción**. Registrar 
 
 - **Día:** de 00:00 a 23:59 en hora de España (`Europe/Madrid`), para los tres. Nico vive en Monterrey pero se adapta a la hora española.
 - **Registro:** solo se puede añadir actividad al día en curso. Por intervalo ("de 17:00 a 18:30"), por minutos o con el cronómetro.
-- **Corregir:** cada uno puede editar o borrar sus propias actividades de cualquier día desde el historial, pero solo a la baja (acortar el intervalo o bajar los minutos; categoría y nota sí se pueden cambiar). Si un día cerrado deja de llegar al mínimo, aparece la multa y se rompe la racha; se avisa antes de guardar.
+- **Corregir:** cada uno puede editar o borrar sus propias actividades de cualquier día desde el historial, pero solo a la baja (acortar el intervalo o bajar los minutos; categoría y nota sí se pueden cambiar). Si un día cerrado deja de llegar al mínimo, aparece su multa, se rompe la racha y pueden subir las multas de los días siguientes que también fallaron (cuentan como fallos seguidos). Antes de guardar se avisa con la multa nueva y cuánto suben las siguientes. Una corrección nunca puede quitar ni bajar una multa.
 - **Cronómetro y medianoche:** si el cronómetro sigue en marcha al cambiar de día, al terminar solo se registra el tramo desde las 00:00 del día en curso; lo anterior se pierde (el día ya está cerrado).
 - **Categorías:** Estudio, Deberes y trabajos, Lectura, Escritura, Deporte (el gimnasio NO cuenta, los tres van), Otro (nota obligatoria). Todas cuentan igual.
 - **Mínimo diario:** individual, con un valor de lunes a viernes y otro de sábado y domingo. Cada uno lo cambia cuando quiere, pero el cambio se aplica **desde el día siguiente** (para que nadie se lo baje a última hora). Los días pasados se evalúan con el mínimo vigente ese día.
@@ -85,4 +85,4 @@ Mejora técnica pendiente: vincular cada email de Google a una persona para que 
 - Puntos, niveles o monedas virtuales.
 - Pedir pruebas (fotos, capturas).
 - Días justificados o comodines.
-- Registrar días pasados.
+- Añadir actividad a días pasados (corregir a la baja sí se puede).
